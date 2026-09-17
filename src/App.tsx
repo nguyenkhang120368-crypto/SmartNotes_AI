@@ -1322,7 +1322,7 @@ export default function SmartNotesApp() {
                     value={typedText}
                     onChange={(e) => setTypedText(e.target.value)}
                     placeholder="Gõ hoặc dán nội dung chữ viết tay, định nghĩa, công thức ghi chép trên lớp..."
-                    className="w-full p-4 rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full p-4 rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-white text-zinc-950 font-medium placeholder:text-zinc-400 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
                   />
                 </div>
               )}
