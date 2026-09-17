@@ -1,0 +1,6 @@
+{
+  "name": "SmartNotes AI",
+  "description": "Ứng dụng số hóa và thông minh hóa vở ghi THCS theo bộ sách Kết nối tri thức, tự động tạo sơ đồ tư duy mindmap, trích dẫn tài liệu học thuật và đấu trường ôn tập trắc nghiệm & tự luận.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
