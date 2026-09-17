@@ -76,6 +76,12 @@ export const curriculumPresets: Record<string, AnalysisResult> = {
     flashcards: [
       { q: "Trong thang Celsius, nhiệt độ của nước đá đang tan và nước sôi lần lượt là bao nhiêu?", a: "0°C và 100°C (ở áp suất khí quyển tiêu chuẩn)" },
       { q: "Nhiệt kế rượu và nhiệt kế thủy ngân hoạt động dựa trên hiện tượng vật lý nào?", a: "Sự nở vì nhiệt của chất lỏng (nở ra khi nóng lên, co lại khi lạnh đi)" }
+    ],
+    datesFound: ["15/05/2012"],
+    keyPoints: [
+      "Khái niệm nhiệt độ là số đo độ nóng, lạnh của vật; dụng cụ đo là nhiệt kế.",
+      "Thang đo Celsius (°C) lấy mốc 0°C (nước đá tan) và 100°C (nước sôi ở 1 atm).",
+      "Quy tắc an toàn khi xử lý nhiệt kế thủy ngân khi bị vỡ."
     ]
   },
 

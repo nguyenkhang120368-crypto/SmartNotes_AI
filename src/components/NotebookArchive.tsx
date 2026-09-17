@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SavedNoteRecord, AnalysisResult } from '../types';
+import { formatToDdMmYy } from '../utils/dateUtils';
 import {
   FileText,
   Download,
@@ -190,7 +191,7 @@ export const NotebookArchive: React.FC<NotebookArchiveProps> = ({
                   </div>
                   <span className="text-[11px] text-zinc-400 flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    {record.createdAt}
+                    {formatToDdMmYy(record.createdAt)}
                   </span>
                 </div>
 

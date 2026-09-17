@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserProfile, GradeLevel } from '../types';
 import { X, User, School, Mail, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { formatToDdMmYy } from '../utils/dateUtils';
 
 interface ProfileModalProps {
   profile: UserProfile;
@@ -54,7 +55,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onSave, onC
       school,
       grade,
       gender,
-      dob
+      dob: formatToDdMmYy(dob)
     };
 
     onSave(updatedProfile);
@@ -174,6 +175,36 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onSave, onC
                 type="text"
                 value={school}
                 onChange={(e) => setSchool(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                Giới tính
+              </label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5 flex items-center justify-between">
+                <span>Ngày sinh</span>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">Định dạng: dd/mm/yyyy</span>
+              </label>
+              <input
+                type="text"
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
+                placeholder="dd/mm/yyyy (ví dụ: 15/05/2012)"
                 className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>

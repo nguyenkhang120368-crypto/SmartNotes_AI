@@ -29,7 +29,7 @@ async function startServer() {
     if (!apiKey) {
       return res.status(200).json({
         fallback: true,
-        message: "GEMINI_API_KEY not configured, using curriculum knowledge base."
+        message: "GEMINI_API_KEY chưa được cấu hình trên hệ thống."
       });
     }
 
@@ -43,97 +43,125 @@ async function startServer() {
         },
       });
 
-      const prompt = `Bạn là hệ thống AI phân tích học tập thông minh TH & THCS theo bộ sách "Kết nối tri thức với cuộc sống" của Bộ GD&ĐT Việt Nam.
-Nhiệm vụ của bạn là nhận diện, hiểu sâu và xử lý nội dung trang vở ghi chép của học sinh môn: ${subject || "Khoa học tự nhiên"}.
-${text ? `Văn bản ghi chép của học sinh:\n${text}` : "Nội dung ghi chép được cung cấp trong hình ảnh trang vở đính kèm."}
+      const prompt = `Bạn là trợ lý AI chuyên gia phân tích và tóm tắt vở ghi học sinh bằng Gemini AI.
+QUY TẮC BẮT BUỘC TUYỆT ĐỐI (VI PHẠM LÀ LỖI NGHIÊM TRỌNG):
+1. CHỈ LẤY NỘI DUNG Ở TRONG BÀI ĐÃ ĐƯỢC CHỤP (hoặc văn bản được cung cấp).
+2. CẤM BỊA THÔNG TIN: Tuyệt đối không được thêm bớt kiến thức, sự kiện, công thức hoặc giả định ngoài nội dung thực tế có trong bài chụp.
+3. CẤM BỊA NGUỒN: Mảng "academicSources" CHỈ ĐƯỢC CÓ PHẦN TỬ nếu trong bài chụp học sinh CÓ GHI RÕ NGUỒN SÁCH/TRANG CỤ THỂ. Nếu bài chụp không có ghi nguồn, mảng "academicSources" PHẢI LÀ RỖNG []. Tuyệt đối không tự bịa tên SGK, NXB hay đường link!
+4. ĐỊNH DẠNG NGÀY THÁNG / NGÀY SINH: Mọi ngày sinh hoặc ngày tháng năm xuất hiện trong bài BẮT BUỘC PHẢI THEO ĐỊNH DẠNG dd/mm/yyyy (ví dụ: ngày 15 tháng 5 năm 2012 phải ghi là 15/05/2012, ngày 19 tháng 5 năm 1890 phải ghi là 19/05/1890).
+5. TRÍCH XUẤT NGUYÊN VĂN (extractedText): Đọc và chép lại đầy đủ, chính xác mọi câu chữ/nội dung có trong bài chụp.
+6. TÓM TẮT TRỌNG TÂM (summary): Tóm tắt ngắn gọn, dễ hiểu chỉ dựa trên những gì bài chụp đã viết.
 
-Hãy thực hiện:
-1. Xác định chính xác tên bài học theo SGK Kết nối tri thức.
-2. Tóm tắt 3-5 ý cốt lõi quan trọng nhất.
-3. Tạo Sơ đồ tư duy (Mindmap) phân nhánh logic (3-4 nhánh chính, mỗi nhánh có các ý chi tiết).
-4. QUAN TRỌNG: Phát hiện các lỗi sai hoặc phần ghi chép chưa chính xác/chưa đầy đủ (Audit & Error check) mà học sinh hay mắc phải (sai đơn vị, nhầm lẫn khái niệm, thiếu điều kiện công thức) và đưa ra lời khuyên sửa chữa chuẩn xác.
-5. Gợi ý các hình ảnh minh họa khoa học/sơ đồ trực quan phù hợp với bài học kèm trích nguồn sách rõ ràng.
-6. Trích nguồn tài liệu học thuật chuẩn từ SGK Kết nối tri thức (NXB Giáo dục Việt Nam).
-7. Bộ câu hỏi Flashcard ôn nhanh 2-3 câu.
+${text ? `Văn bản ghi chép của học sinh:\n${text}` : "Nội dung ghi chép nằm trong hình ảnh bài vở đính kèm. Hãy đọc kỹ từng dòng chữ trong ảnh."}
 
 Hãy phản hồi DUY NHẤT dưới dạng JSON hợp lệ với cấu trúc sau:
 {
-  "title": "Tên bài học chuẩn theo SGK Kết nối tri thức",
-  "grade": "Khối lớp tương ứng",
-  "subject": "Môn học",
-  "summary": "Tóm tắt súc tích bài học",
+  "title": "Tên bài hoặc tiêu đề nhận diện được từ bài chụp",
+  "grade": "Khối lớp nếu có đề cập trong bài, hoặc ước lượng phù hợp",
+  "subject": "${subject || "Ghi chép bài học"}",
+  "extractedText": "Toàn bộ nội dung chữ viết nhận diện được từ bài chụp (trung thực 100%, không bịa đặt)",
+  "summary": "Tóm tắt ngắn gọn, súc tích trọng tâm của bài đã chụp (chỉ lấy thông tin từ bài)",
+  "keyPoints": [
+    "Ý chính 1 rút ra từ bài chụp",
+    "Ý chính 2 rút ra từ bài chụp"
+  ],
+  "datesFound": [
+    "Các ngày tháng hoặc ngày sinh có trong bài theo định dạng dd/mm/yyyy (ví dụ: 15/05/2012)"
+  ],
   "structuredSections": [
-    { "type": "concept", "heading": "Khái niệm cốt lõi", "content": "Chi tiết khái niệm..." },
-    { "type": "formula", "heading": "Công thức / Quy tắc", "content": "Chi tiết công thức..." },
-    { "type": "note", "heading": "Điểm cần ghi nhớ", "content": "Lưu ý quan trọng..." }
+    { "type": "concept", "heading": "Khái niệm / Nội dung trong bài", "content": "Chi tiết theo bài chụp..." }
   ],
   "mindmap": [
     {
-      "node": "Tên nhánh chính 1",
-      "children": ["Ý phụ 1.1", "Ý phụ 1.2"]
-    },
-    {
-      "node": "Tên nhánh chính 2",
-      "children": ["Ý phụ 2.1", "Ý phụ 2.2"]
+      "node": "Tên nhánh chính",
+      "children": ["Ý phụ 1", "Ý phụ 2"]
     }
   ],
   "auditChecks": [
     {
-      "status": "warning",
-      "issue": "Nội dung hoặc công thức có nguy cơ nhầm lẫn",
-      "suggestion": "Cách ghi chính xác chuẩn SGK Kết nối tri thức"
+      "status": "verified",
+      "issue": "Nhận xét về chữ viết hoặc số liệu trong bài",
+      "suggestion": "Góp ý cải thiện nếu bài chụp có chỗ chưa rõ"
     }
   ],
-  "illustrationImages": [
-    {
-      "caption": "Mô tả hình vẽ sơ đồ / thí nghiệm / hình học",
-      "source": "Trích từ SGK Kết nối tri thức với cuộc sống - NXB Giáo dục Việt Nam",
-      "keyword": "từ khóa tìm kiếm hoặc minh họa"
-    }
-  ],
-  "academicSources": [
-    {
-      "title": "Tên bài và tập SGK Kết nối tri thức",
-      "link": "https://nxbgd.vn"
-    },
-    {
-      "title": "Cổng thông tin học liệu điện tử Bộ Giáo dục và Đào tạo",
-      "link": "https://moet.gov.vn"
-    }
-  ],
+  "academicSources": [],
   "flashcards": [
-    { "q": "Câu hỏi ôn tập?", "a": "Đáp án chuẩn xác" }
+    { "q": "Câu hỏi ôn tập bám sát bài chụp?", "a": "Đáp án từ bài chụp" }
   ]
 }`;
 
-      const contents: any[] = [];
+      // Build multimodal parts array
+      const parts: any[] = [];
       if (imageBase64) {
-        contents.push({
+        let cleanBase64 = imageBase64;
+        let detectedMime = mimeType || "image/jpeg";
+        const match = imageBase64.match(/^data:([^;]+);base64,(.+)$/s);
+        if (match) {
+          detectedMime = match[1] || detectedMime;
+          cleanBase64 = match[2];
+        } else {
+          cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+        }
+
+        parts.push({
           inlineData: {
-            mimeType: mimeType || "image/jpeg",
-            data: imageBase64.replace(/^data:image\/[a-z]+;base64,/, ""),
+            mimeType: detectedMime,
+            data: cleanBase64,
           },
         });
       }
-      contents.push({ text: prompt });
+      parts.push({ text: prompt });
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.3,
-        },
-      });
+      // Resilience cascade: Try gemini-3.8-flash first, fallback to gemini-3.1-flash-lite if 503/error
+      const candidateModels = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+      let lastError: any = null;
+      let parsedData: any = null;
 
-      const rawText = response.text || "";
-      const parsedData = JSON.parse(rawText);
-      return res.json({ success: true, data: parsedData });
+      for (const model of candidateModels) {
+        try {
+          const response = await ai.models.generateContent({
+            model,
+            contents: parts,
+            config: {
+              responseMimeType: "application/json",
+              temperature: 0.1,
+            },
+          });
+
+          const rawText = response.text || "";
+          if (rawText.trim()) {
+            parsedData = JSON.parse(rawText);
+            // Ensure dates format in datesFound is strictly dd/mm/yyyy
+            if (Array.isArray(parsedData.datesFound)) {
+              parsedData.datesFound = parsedData.datesFound.map((d: string) => {
+                const match4 = d.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+                if (match4) return `${match4[1].padStart(2, "0")}/${match4[2].padStart(2, "0")}/${match4[3]}`;
+                const match2 = d.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})$/);
+                if (match2) {
+                  const yy = parseInt(match2[3], 10);
+                  const fullYear = yy <= 40 ? `20${match2[3]}` : `19${match2[3]}`;
+                  return `${match2[1].padStart(2, "0")}/${match2[2].padStart(2, "0")}/${fullYear}`;
+                }
+                const matchIso = d.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+                if (matchIso) return `${matchIso[3].padStart(2, "0")}/${matchIso[2].padStart(2, "0")}/${matchIso[1]}`;
+                return d;
+              });
+            }
+            parsedData.isRealGeminiAnalysis = true;
+            return res.json({ success: true, data: parsedData });
+          }
+        } catch (modelErr: any) {
+          console.warn(`Model ${model} attempt failed:`, modelErr?.message || modelErr);
+          lastError = modelErr;
+        }
+      }
+
+      throw lastError || new Error("Không thể phân tích nội dung từ các mô hình Gemini AI.");
     } catch (err: any) {
       console.error("Gemini analysis error:", err?.message || err);
       return res.status(200).json({
         fallback: true,
-        error: err?.message,
+        error: err?.message || "Lỗi khi gọi Gemini AI",
       });
     }
   });

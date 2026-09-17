@@ -45,6 +45,7 @@ import { NotebookArchive } from "./components/NotebookArchive";
 import { ProfileModal } from "./components/ProfileModal";
 import { ThemeStudioModal } from "./components/ThemeStudioModal";
 import { RewardShopView } from "./components/RewardShopView";
+import { formatToDdMmYy } from "./utils/dateUtils";
 
 export default function SmartNotesApp() {
   // ================= AUTHENTICATION STATE =================
@@ -65,7 +66,7 @@ export default function SmartNotesApp() {
   const [regSchool, setRegSchool] = useState("THCS & THPT FPT Đà Nẵng");
   const [regGrade, setRegGrade] = useState<GradeLevel>("Lớp 6");
   const [regGender, setRegGender] = useState("Nam");
-  const [regDob, setRegDob] = useState("2012-05-15");
+  const [regDob, setRegDob] = useState("15/05/2012");
   const [regError, setRegError] = useState("");
 
   // ================= MAIN NAVIGATION & THEME =================
@@ -177,21 +178,26 @@ export default function SmartNotesApp() {
 
   // User Profile
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem("sn_user_profile");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return {
+    const defaultProfile: UserProfile = {
       fullName: "Nguyễn Văn A",
       email: "example@abc.com",
       username: "nguyenvana",
       school: "THCS & THPT FPT Đà Nẵng",
       grade: "Lớp 6",
       gender: "Nam",
-      dob: "2012-05-15"
+      dob: "15/05/2012"
     };
+    const saved = localStorage.getItem("sn_user_profile");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.dob) {
+          parsed.dob = formatToDdMmYy(parsed.dob);
+        }
+        return { ...defaultProfile, ...parsed };
+      } catch (e) {}
+    }
+    return defaultProfile;
   });
 
   // ================= SCANNING & AI DIGITIZATION STATE =================
@@ -200,7 +206,10 @@ export default function SmartNotesApp() {
   const [typedText, setTypedText] = useState<string>("");
   const [uploadedImagePreview, setUploadedImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(() => curriculumPresets["KHTN 6 (Kết nối tri thức)"]);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisSuccessToast, setAnalysisSuccessToast] = useState<string | null>(null);
+  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const [copiedNotepad, setCopiedNotepad] = useState<boolean>(false);
   const [revealedFlashcard, setRevealedFlashcard] = useState<Record<number, boolean>>({});
 
@@ -377,7 +386,7 @@ export default function SmartNotesApp() {
       school: regSchool,
       grade: regGrade,
       gender: regGender,
-      dob: regDob
+      dob: formatToDdMmYy(regDob)
     };
 
     setUserProfile(updatedProfile);
@@ -385,22 +394,30 @@ export default function SmartNotesApp() {
     setActiveTab("home");
   };
 
-  // AI Digitization & Semantic Analysis
+  // AI Digitization & Semantic Analysis via Gemini AI
   // Rule: Mỗi lần quét & Phân tích vở là sẽ trừ 2 credits
   const handleStartAnalysis = async () => {
+    if (!uploadedImagePreview && !typedText.trim()) {
+      setAnalysisError("Vui lòng chụp ảnh/tải lên ảnh trang vở hoặc nhập nội dung bài trước khi phân tích!");
+      return;
+    }
+
     if (credits < 2) {
       setInsufficientCreditsModal(true);
       return;
     }
 
+    setAnalysisError(null);
+    setAnalysisSuccessToast(null);
+
     // Deduct 2 credits and log transaction
-    setCredits(prev => prev - 2);
+    setCredits(prev => Math.max(0, prev - 2));
     const scanTx: CreditTransaction = {
       id: `tx-${Date.now()}`,
       type: "spend",
       amount: 2,
-      description: `Quét & Phân tích vở ghi (${selectedSubjectPreset})`,
-      timestamp: `${new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date().toLocaleDateString("vi-VN")}`,
+      description: `Quét & Tóm tắt vở ghi (${selectedSubjectPreset})`,
+      timestamp: `${new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${formatToDdMmYy(new Date())}`,
       category: "scan"
     };
     setCreditTransactions(prev => [scanTx, ...prev]);
@@ -421,6 +438,8 @@ export default function SmartNotesApp() {
       const resData = await response.json();
       if (resData.success && resData.data) {
         const analyzed = resData.data;
+        analyzed.rawPhotoPreview = uploadedImagePreview || undefined;
+        analyzed.isRealGeminiAnalysis = true;
         setAnalysisResult(analyzed);
 
         // Automatically save to local notebook archive
@@ -429,35 +448,35 @@ export default function SmartNotesApp() {
           title: analyzed.title || "Bài ghi số hóa",
           subject: analyzed.subject || selectedSubjectPreset.split(" ")[0],
           grade: analyzed.grade || userProfile.grade,
-          createdAt: new Date().toLocaleDateString("vi-VN"),
+          createdAt: formatToDdMmYy(new Date()),
           summary: analyzed.summary || "",
           fullData: analyzed
         };
         setSavedNotes(prev => [newRecord, ...prev]);
         setIsAnalyzing(false);
+        setAnalysisSuccessToast("Gemini AI đã phân tích và tóm tắt thành công bài học từ ảnh chụp!");
+        setTimeout(() => {
+          resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
         return;
+      } else {
+        throw new Error(resData.error || resData.message || "Hệ thống AI không thể phản hồi lúc này.");
       }
-    } catch (e) {
-      // Fallback
-    }
-
-    // Fallback to rich curriculum preset
-    setTimeout(() => {
-      const preset = curriculumPresets[selectedSubjectPreset] || curriculumPresets["KHTN 6 (Kết nối tri thức)"];
-      setAnalysisResult(preset);
-
-      const newRecord: SavedNoteRecord = {
-        id: `note-${Date.now()}`,
-        title: preset.title,
-        subject: preset.subject || selectedSubjectPreset.split(" ")[0],
-        grade: preset.grade || userProfile.grade,
-        createdAt: new Date().toLocaleDateString("vi-VN"),
-        summary: preset.summary,
-        fullData: preset
-      };
-      setSavedNotes(prev => [newRecord, ...prev]);
+    } catch (e: any) {
+      console.error("Gemini analysis failed:", e);
       setIsAnalyzing(false);
-    }, 1200);
+      setAnalysisError(e?.message || "Không thể phân tích bằng Gemini AI lúc này. Vui lòng bấm 'Thử lại' hoặc kiểm tra ảnh chụp.");
+    }
+  };
+
+  const handleLoadSamplePreset = () => {
+    const preset = curriculumPresets[selectedSubjectPreset] || curriculumPresets["KHTN 6 (Kết nối tri thức)"];
+    setAnalysisResult(preset);
+    setAnalysisError(null);
+    setAnalysisSuccessToast("Đã tải bài phân tích mẫu tham khảo!");
+    setTimeout(() => {
+      resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   // Export current active note to Notepad (.txt)
@@ -704,14 +723,18 @@ export default function SmartNotesApp() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                    Ngày sinh
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-zinc-300">
+                      Ngày sinh
+                    </label>
+                    <span className="text-[10px] text-indigo-400 font-bold">dd/mm/yyyy</span>
+                  </div>
                   <input
-                    type="date"
+                    type="text"
                     value={regDob}
                     onChange={(e) => setRegDob(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-800 border border-white/20 text-white text-sm focus:outline-none"
+                    placeholder="dd/mm/yyyy (ví dụ: 15/05/2012)"
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-800 border border-white/20 text-white text-sm focus:outline-none placeholder:text-zinc-500"
                   />
                 </div>
               </div>
@@ -1385,162 +1408,320 @@ export default function SmartNotesApp() {
                 </div>
               )}
 
+              {/* Inline Error & Success Banners */}
+              {analysisError && (
+                <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-2">
+                    <div className="font-bold text-sm text-rose-900 dark:text-rose-100">Chưa thể hoàn tất phân tích</div>
+                    <p className="leading-relaxed">{analysisError}</p>
+                    <button
+                      type="button"
+                      onClick={handleStartAnalysis}
+                      className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm flex items-center gap-1 transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Thử phân tích lại ngay</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {analysisSuccessToast && (
+                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>{analysisSuccessToast}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAnalysisSuccessToast(null)}
+                    className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              )}
+
               {/* Analyze Button */}
               <button
                 onClick={handleStartAnalysis}
                 disabled={isAnalyzing}
-                className="w-full py-4 rounded-2xl text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-4 rounded-2xl text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 style={{ backgroundColor: accentColor }}
               >
                 {isAnalyzing ? (
                   <>
-                    <RotateCcw className="w-4 h-4 animate-spin" />
-                    <span>AI đang hiểu nội dung, tạo sơ đồ tư duy & rà soát lỗi...</span>
+                    <RotateCcw className="w-5 h-5 animate-spin" />
+                    <span>Gemini AI đang nhận diện chữ, tóm tắt ý chính & chuẩn hóa ngày tháng...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5" />
-                    <span>Tiến hành Phân tích & Số hóa thông minh (Trừ 2 credits)</span>
+                    <span>Tiến hành Phân tích & Tóm tắt bằng Gemini AI (Trừ 2 credits)</span>
                   </>
                 )}
               </button>
             </div>
 
             {/* RESULTS VIEW */}
-            {analysisResult && (
-              <div className="space-y-6">
-                {/* Result Title & Notepad Export Action */}
-                <div className={`p-6 rounded-3xl border ${cardClasses} flex flex-wrap items-center justify-between gap-4 shadow-sm`}>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Đã hiểu sâu & Số hóa</span>
-                      </span>
-                      <span className="text-xs px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium">
-                        {analysisResult.grade || userProfile.grade}
-                      </span>
+            <div ref={resultsSectionRef} id="analysis-result-container">
+              {analysisResult ? (
+                <div className="space-y-6">
+                  {/* Result Title & Notepad Export Action */}
+                  <div className={`p-6 rounded-3xl border ${cardClasses} flex flex-wrap items-center justify-between gap-4 shadow-sm`}>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Đã phân tích bằng Gemini AI</span>
+                        </span>
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-medium">
+                          ✓ Chỉ lấy nội dung trong bài đã chụp
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium">
+                          {analysisResult.grade || userProfile.grade}
+                        </span>
+                      </div>
+                      <h3 className="text-xl md:text-2xl font-black mt-2.5 text-zinc-900 dark:text-zinc-100">
+                        {analysisResult.title}
+                      </h3>
                     </div>
-                    <h3 className="text-xl md:text-2xl font-black mt-2 text-zinc-900 dark:text-zinc-100">
-                      {analysisResult.title}
-                    </h3>
+
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        onClick={handleDownloadNotepad}
+                        className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-xs font-bold transition flex items-center gap-2 border border-zinc-200 dark:border-zinc-700"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>{copiedNotepad ? "Đã xuất Notepad (.txt)!" : "Xuất Notepad (.txt)"}</span>
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("arena")}
+                        className="px-4 py-2 rounded-xl text-white text-xs font-bold shadow-md transition flex items-center gap-1.5"
+                        style={{ backgroundColor: accentColor }}
+                      >
+                        <Trophy className="w-4 h-4" />
+                        <span>Ôn tập bài này</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2.5">
-                    <button
-                      onClick={handleDownloadNotepad}
-                      className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-xs font-bold transition flex items-center gap-2 border border-zinc-200 dark:border-zinc-700"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>{copiedNotepad ? "Đã xuất Notepad (.txt)!" : "Xuất Notepad (.txt)"}</span>
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("arena")}
-                      className="px-4 py-2 rounded-xl text-white text-xs font-bold shadow-md transition flex items-center gap-1.5"
-                      style={{ backgroundColor: accentColor }}
-                    >
-                      <Trophy className="w-4 h-4" />
-                      <span>Ôn tập bài này</span>
-                    </button>
-                  </div>
-                </div>
+                  {/* Section: OCR & Captured Note Content */}
+                  {(analysisResult.extractedText || uploadedImagePreview) && (
+                    <div className={`p-6 rounded-3xl border ${cardClasses} space-y-4 shadow-sm`}>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+                          <FileText className="w-4 h-4 text-indigo-500" />
+                          <span>Nội dung chữ nhận diện trực tiếp từ bài chụp (Gemini OCR)</span>
+                        </h4>
+                        <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                          Trung thực 100% - Không bịa đặt
+                        </span>
+                      </div>
 
-                {/* Section 1: Summary */}
-                <div className={`p-6 rounded-3xl border ${cardClasses} space-y-3 shadow-sm`}>
-                  <h4 className="text-sm font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
-                    <Lightbulb className="w-4 h-4 text-amber-500" />
-                    <span>Bản tóm tắt ý chính trọng tâm</span>
-                  </h4>
-                  <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800/60 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-                    {analysisResult.summary}
-                  </p>
-                </div>
-
-                {/* Section 2: Interactive Mindmap */}
-                <MindmapView
-                  title={analysisResult.title}
-                  branches={analysisResult.mindmap || []}
-                />
-
-                {/* Section 3: AI Audit & Error Check */}
-                <AuditReportView
-                  auditChecks={analysisResult.auditChecks || []}
-                />
-
-                {/* Section 4: Illustration Gallery with Textbook Citations */}
-                <IllustrationGallery
-                  illustrations={analysisResult.illustrationImages || []}
-                />
-
-                {/* Section 5: Flashcards */}
-                {analysisResult.flashcards && analysisResult.flashcards.length > 0 && (
-                  <div className={`p-6 rounded-3xl border ${cardClasses} space-y-4 shadow-sm`}>
-                    <h4 className="text-sm font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
-                      <Sparkles className="w-4 h-4 text-indigo-500" />
-                      <span>Flashcards ôn nhanh theo nội dung vừa học</span>
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {analysisResult.flashcards.map((fc, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() =>
-                            setRevealedFlashcard(prev => ({
-                              ...prev,
-                              [idx]: !prev[idx]
-                            }))
-                          }
-                          className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 cursor-pointer hover:border-indigo-400 transition space-y-2"
-                        >
-                          <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                            Câu hỏi {idx + 1}: {fc.q}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* Uploaded photo thumbnail */}
+                        {uploadedImagePreview && (
+                          <div className="space-y-1.5">
+                            <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                              Ảnh chụp bài vở thực tế:
+                            </div>
+                            <div className="relative rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 max-h-72 flex items-center justify-center">
+                              <img
+                                src={uploadedImagePreview}
+                                alt="Ảnh bài vở đã chụp"
+                                className="w-full h-full object-contain max-h-72"
+                              />
+                            </div>
                           </div>
-                          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 text-xs">
-                            {revealedFlashcard[idx] ? (
-                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                                ✓ Đáp án SGK: {fc.a}
-                              </span>
-                            ) : (
-                              <span className="text-zinc-400 italic">
-                                💡 Nhấp vào đây để xem đáp án...
-                              </span>
-                            )}
+                        )}
+
+                        {/* Extracted text */}
+                        <div className={`space-y-1.5 ${!uploadedImagePreview ? 'lg:col-span-2' : ''}`}>
+                          <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                            Văn bản trích xuất được:
+                          </div>
+                          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700 text-xs font-mono leading-relaxed text-zinc-800 dark:text-zinc-200 max-h-72 overflow-y-auto whitespace-pre-wrap select-text">
+                            {analysisResult.extractedText || "(Đã phân tích nội dung từ ảnh chụp)"}
                           </div>
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Section 6: Official Academic Sources */}
-                {analysisResult.academicSources && analysisResult.academicSources.length > 0 && (
+                  {/* Section: Dates and Birthdates found (dd/mm/yyyy format) */}
+                  {analysisResult.datesFound && analysisResult.datesFound.length > 0 && (
+                    <div className={`p-5 rounded-3xl border ${cardClasses} space-y-2 shadow-sm bg-gradient-to-r from-amber-50/60 via-transparent to-transparent dark:from-amber-950/20`}>
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-300">
+                        <Calendar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        <span>Mốc thời gian / Ngày sinh trong bài (Định dạng chuẩn dd/mm/yyyy):</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {analysisResult.datesFound.map((dStr, idx) => (
+                          <span
+                            key={idx}
+                            className="px-3 py-1 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-200 font-bold text-xs border border-amber-300 dark:border-amber-700 flex items-center gap-1.5 shadow-sm"
+                          >
+                            <Calendar className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300" />
+                            <span>{formatToDdMmYy(dStr)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 1: Summary */}
+                  <div className={`p-6 rounded-3xl border ${cardClasses} space-y-3 shadow-sm`}>
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+                        <Lightbulb className="w-4 h-4 text-amber-500" />
+                        <span>Bản tóm tắt ý chính trọng tâm (Gemini AI)</span>
+                      </h4>
+                      <span className="text-[11px] text-zinc-400">
+                        Chỉ tóm tắt nội dung trong bài đã chụp
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-zinc-800 dark:text-zinc-200 bg-zinc-50 dark:bg-zinc-800/60 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                      {analysisResult.summary}
+                    </p>
+
+                    {/* Key points if available */}
+                    {analysisResult.keyPoints && analysisResult.keyPoints.length > 0 && (
+                      <div className="pt-2 space-y-2">
+                        <div className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Các điểm cốt lõi trong bài:</div>
+                        <div className="space-y-1.5">
+                          {analysisResult.keyPoints.map((kp, kIdx) => (
+                            <div key={kIdx} className="flex items-start gap-2 text-xs text-zinc-700 dark:text-zinc-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                              <span>{kp}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Section 2: Interactive Mindmap */}
+                  <MindmapView
+                    title={analysisResult.title}
+                    branches={analysisResult.mindmap || []}
+                  />
+
+                  {/* Section 3: AI Audit & Error Check */}
+                  <AuditReportView
+                    auditChecks={analysisResult.auditChecks || []}
+                  />
+
+                  {/* Section 4: Illustration Gallery */}
+                  {analysisResult.illustrationImages && analysisResult.illustrationImages.length > 0 && (
+                    <IllustrationGallery
+                      illustrations={analysisResult.illustrationImages}
+                    />
+                  )}
+
+                  {/* Section 5: Flashcards */}
+                  {analysisResult.flashcards && analysisResult.flashcards.length > 0 && (
+                    <div className={`p-6 rounded-3xl border ${cardClasses} space-y-4 shadow-sm`}>
+                      <h4 className="text-sm font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+                        <Sparkles className="w-4 h-4 text-indigo-500" />
+                        <span>Flashcards ôn nhanh theo nội dung vừa học</span>
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {analysisResult.flashcards.map((fc, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() =>
+                              setRevealedFlashcard(prev => ({
+                                ...prev,
+                                [idx]: !prev[idx]
+                              }))
+                            }
+                            className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 cursor-pointer hover:border-indigo-400 transition space-y-2"
+                          >
+                            <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                              Câu hỏi {idx + 1}: {fc.q}
+                            </div>
+                            <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 text-xs">
+                              {revealedFlashcard[idx] ? (
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  ✓ Đáp án: {fc.a}
+                                </span>
+                              ) : (
+                                <span className="text-zinc-400 italic">
+                                  💡 Nhấp vào đây để xem đáp án...
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 6: Academic Sources (Strict Anti-Hallucination) */}
                   <div className={`p-6 rounded-3xl border ${cardClasses} space-y-3 shadow-sm`}>
                     <h4 className="text-sm font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
                       <BookOpen className="w-4 h-4 text-blue-500" />
-                      <span>Nguồn tài liệu học thuật chuẩn SGK (Bộ Giáo dục và Đào tạo)</span>
+                      <span>Nguồn tài liệu học thuật</span>
                     </h4>
-                    <div className="space-y-2">
-                      {analysisResult.academicSources.map((src, idx) => (
-                        <div
-                          key={idx}
-                          className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 flex items-center justify-between text-xs"
-                        >
-                          <span className="font-medium text-zinc-800 dark:text-zinc-200">{src.title}</span>
-                          <a
-                            href={src.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1 shrink-0"
+                    {analysisResult.academicSources && analysisResult.academicSources.length > 0 ? (
+                      <div className="space-y-2">
+                        {analysisResult.academicSources.map((src, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 flex items-center justify-between text-xs"
                           >
-                            <span>Xem tài liệu gốc</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-                      ))}
-                    </div>
+                            <span className="font-medium text-zinc-800 dark:text-zinc-200">{src.title}</span>
+                            {src.link && (
+                              <a
+                                href={src.link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1 shrink-0"
+                              >
+                                <span>Xem tài liệu</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span>Không phát hiện nguồn trích dẫn ghi trong bài chụp (Đảm bảo trung thực 100%, tuân thủ nghiêm ngặt nguyên tắc cấm bịa thông tin/nguồn).</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              ) : (
+                /* Empty state when no note has been analyzed yet */
+                <div className={`p-8 md:p-12 rounded-3xl border ${cardClasses} text-center space-y-4 shadow-sm`}>
+                  <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto shadow-sm">
+                    <Sparkles className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1.5 max-w-md mx-auto">
+                    <h3 className="text-base md:text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                      Chưa có nội dung phân tích nào
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                      Hãy tải lên ảnh chụp trang vở hoặc gõ nội dung bài học, sau đó bấm nút <span className="font-bold text-indigo-600 dark:text-indigo-400">"Tiến hành Phân tích & Tóm tắt bằng Gemini AI"</span> để nhận diện chữ, tóm tắt và trích xuất ngày tháng theo định dạng dd/mm/yyyy.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={handleLoadSamplePreset}
+                      className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-semibold shadow-sm transition flex items-center gap-2"
+                    >
+                      <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Thử xem bài phân tích mẫu</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1563,6 +1744,8 @@ export default function SmartNotesApp() {
           <ReviewArena
             initialGrade={userProfile.grade}
             onAddCredits={handleAddCredits}
+            userCredits={credits}
+            onNavigateToRewards={() => setActiveTab("rewards")}
           />
         )}
 

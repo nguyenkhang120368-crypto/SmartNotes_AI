@@ -63,6 +63,11 @@ export interface AnalysisResult {
   semester?: string;
   createdAt?: string;
   summary: string;
+  extractedText?: string;
+  datesFound?: string[];
+  keyPoints?: string[];
+  isRealGeminiAnalysis?: boolean;
+  rawPhotoPreview?: string;
   structuredSections?: StructuredSection[];
   mindmap: MindmapBranch[];
   auditChecks?: AuditCheck[];

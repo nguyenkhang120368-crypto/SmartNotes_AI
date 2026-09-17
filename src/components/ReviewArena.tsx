@@ -22,14 +22,21 @@ import {
 interface ReviewArenaProps {
   initialGrade: GradeLevel;
   onAddCredits?: (amount: number, reason: string) => void;
+  userCredits?: number;
+  onNavigateToRewards?: () => void;
 }
 
-export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCredits }) => {
+export const ReviewArena: React.FC<ReviewArenaProps> = ({
+  initialGrade,
+  onAddCredits,
+  userCredits = 10,
+  onNavigateToRewards
+}) => {
   // Arena Filters
   const [selectedGrade, setSelectedGrade] = useState<GradeLevel>(initialGrade);
   const [selectedSemester, setSelectedSemester] = useState<Semester>('Học kì I');
   const [selectedSubject, setSelectedSubject] = useState<string>('Tất cả');
-  const [questionCount, setQuestionCount] = useState<number>(4);
+  const [questionCount, setQuestionCount] = useState<number>(10);
   const [questionType, setQuestionType] = useState<'all' | 'mc' | 'essay'>('all');
 
   // Game State
@@ -51,7 +58,7 @@ export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCre
   ];
 
   // Play synthetic Web Audio sound effect
-  const playSound = (isCorrect: boolean) => {
+  const playSound = (type: 'correct' | 'wrong' | 'victory') => {
     if (!soundEnabled) return;
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -60,7 +67,17 @@ export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCre
       osc.connect(gain);
       gain.connect(audioCtx.destination);
 
-      if (isCorrect) {
+      if (type === 'victory') {
+        // Fanfare chord
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+        osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+        osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3); // C6
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.8);
+      } else if (type === 'correct') {
         osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
         osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
         gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
@@ -89,32 +106,72 @@ export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCre
     return ['Tất cả', ...Array.from(subjectsSet)];
   }, [selectedGrade]);
 
-  // Build the active quiz set based on user preferences
+  // Build the active quiz set based on user preferences - GUARANTEES EXACTLY questionCount questions!
   const activeQuestions = useMemo(() => {
-    let pool = sampleQuizzesBank.filter(q => q.grade === selectedGrade);
+    // Step 1: Strict match for chosen criteria
+    let matching = sampleQuizzesBank.filter(q => q.grade === selectedGrade);
 
     if (selectedSemester !== 'Cả năm') {
-      pool = pool.filter(q => !q.semester || q.semester === selectedSemester);
+      const semFiltered = matching.filter(q => !q.semester || q.semester === selectedSemester);
+      if (semFiltered.length > 0) matching = semFiltered;
     }
 
     if (selectedSubject !== 'Tất cả') {
-      pool = pool.filter(q => q.subject === selectedSubject);
+      const subFiltered = matching.filter(q => q.subject === selectedSubject);
+      if (subFiltered.length > 0) matching = subFiltered;
     }
 
     if (questionType === 'mc') {
-      pool = pool.filter(q => q.type === 'mc');
+      const typeFiltered = matching.filter(q => q.type === 'mc');
+      if (typeFiltered.length > 0) matching = typeFiltered;
     } else if (questionType === 'essay') {
-      pool = pool.filter(q => q.type === 'essay');
+      const typeFiltered = matching.filter(q => q.type === 'essay');
+      if (typeFiltered.length > 0) matching = typeFiltered;
     }
 
-    // If filtered pool is too small, fallback to same grade
-    if (pool.length === 0) {
-      pool = sampleQuizzesBank.filter(q => q.grade === selectedGrade);
+    // Shuffle strictly matched questions
+    const shuffledMatching = [...matching].sort(() => 0.5 - Math.random());
+
+    // If strictly matched set is already enough, take exactly questionCount
+    if (shuffledMatching.length >= questionCount) {
+      return shuffledMatching.slice(0, questionCount);
     }
 
-    // Shuffle and slice to desired count
-    const shuffled = [...pool].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, Math.min(questionCount, shuffled.length));
+    // Step 2: Intelligently backfill so question count ALWAYS equals questionCount (e.g. 10 questions)
+    const result: QuizQuestion[] = [...shuffledMatching];
+    const existingIds = new Set(result.map(q => q.id));
+
+    // Priority 1: Other subjects & semesters of the same grade
+    const sameGradePool = sampleQuizzesBank
+      .filter(q => q.grade === selectedGrade && !existingIds.has(q.id))
+      .sort(() => 0.5 - Math.random());
+    for (const q of sameGradePool) {
+      if (result.length >= questionCount) break;
+      result.push(q);
+      existingIds.add(q.id);
+    }
+
+    // Priority 2: Other grades in the SGK bank
+    if (result.length < questionCount) {
+      const allOtherPool = sampleQuizzesBank
+        .filter(q => !existingIds.has(q.id))
+        .sort(() => 0.5 - Math.random());
+      for (const q of allOtherPool) {
+        if (result.length >= questionCount) break;
+        result.push(q);
+        existingIds.add(q.id);
+      }
+    }
+
+    // Fallback: Safe clone if pool is ever exhausted
+    let cloneIdx = 0;
+    while (result.length < questionCount && result.length > 0) {
+      const base = result[cloneIdx % result.length];
+      result.push({ ...base, id: `${base.id}_extra_${cloneIdx}_${Date.now()}` });
+      cloneIdx++;
+    }
+
+    return result.slice(0, questionCount);
   }, [selectedGrade, selectedSemester, selectedSubject, questionType, questionCount]);
 
   const currentQ = activeQuestions[currentIndex];
@@ -142,10 +199,10 @@ export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCre
       setScore(prev => prev + 100 + streak * 10);
       setStreak(prev => prev + 1);
       setCorrectCount(prev => prev + 1);
-      playSound(true);
+      playSound('correct');
     } else {
       setStreak(0);
-      playSound(false);
+      playSound('wrong');
     }
   };
 
@@ -155,10 +212,10 @@ export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCre
       setScore(prev => prev + 100 + streak * 10);
       setStreak(prev => prev + 1);
       setCorrectCount(prev => prev + 1);
-      playSound(true);
+      playSound('correct');
     } else {
       setStreak(0);
-      playSound(false);
+      playSound('wrong');
     }
   };
 
@@ -173,6 +230,7 @@ export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCre
       // Check 10/10 bonus rule
       if (activeQuestions.length === 10 && correctCount === 10 && !awardedCreditBonus) {
         setAwardedCreditBonus(true);
+        playSound('victory');
         onAddCredits?.(1, 'Thưởng hoàn thành xuất sắc 10/10 câu Đấu trường ôn tập');
       }
     }
@@ -182,6 +240,7 @@ export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCre
   React.useEffect(() => {
     if (gameFinished && activeQuestions.length === 10 && correctCount === 10 && !awardedCreditBonus) {
       setAwardedCreditBonus(true);
+      playSound('victory');
       onAddCredits?.(1, 'Thưởng hoàn thành xuất sắc 10/10 câu Đấu trường ôn tập');
     }
   }, [gameFinished, activeQuestions.length, correctCount, awardedCreditBonus, onAddCredits]);
@@ -325,9 +384,17 @@ export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCre
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-              <div className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-indigo-500" />
-                <span>Số câu tìm thấy trong ngân hàng SGK: <strong className="text-zinc-900 dark:text-zinc-100">{activeQuestions.length} câu</strong></span>
+              <div className="space-y-1">
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-indigo-500" />
+                  <span>Bộ đề thi đấu: <strong className="text-zinc-900 dark:text-zinc-100 font-bold">{activeQuestions.length} / {questionCount} câu hỏi</strong> chuẩn SGK</span>
+                </div>
+                {questionCount === 10 && (
+                  <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                    <Coins className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Đúng trọn vẹn 10/10 câu: Tự động cộng ngay <strong>+1 Credit</strong> vào ví đổi quà!</span>
+                  </div>
+                )}
               </div>
 
               <button
@@ -343,32 +410,47 @@ export const ReviewArena: React.FC<ReviewArenaProps> = ({ initialGrade, onAddCre
 
           {/* Results Screen if finished */}
           {gameFinished && (
-            <div className="p-8 rounded-3xl bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-indigo-950/40 dark:via-zinc-900 dark:to-purple-950/40 border border-indigo-200 dark:border-indigo-800 text-center space-y-4">
+            <div className="p-8 rounded-3xl bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-indigo-950/40 dark:via-zinc-900 dark:to-purple-950/40 border border-indigo-200 dark:border-indigo-800 text-center space-y-5">
               <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto shadow-md">
                 <Award className="w-8 h-8" />
               </div>
-              <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                Chúc mừng bạn đã hoàn thành Đấu trường!
-              </h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
-                Bạn đã hoàn thành xuất sắc thử thách ôn tập SGK Kết nối tri thức. Điểm số kinh nghiệm này đã được tích lũy vào hồ sơ cá nhân.
-              </p>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
+                  Chúc mừng bạn đã hoàn thành Đấu trường!
+                </h3>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
+                  Bạn đã hoàn thành thử thách ôn tập SGK Kết nối tri thức. Điểm số kinh nghiệm này đã được tích lũy vào hồ sơ cá nhân.
+                </p>
+              </div>
 
               {/* Special 10/10 Credit Bonus Banner */}
               {activeQuestions.length === 10 && correctCount === 10 ? (
-                <div className="p-4 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 text-amber-950 dark:text-amber-200 flex items-center justify-center gap-3 shadow-sm animate-pulse">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow">
-                    <Coins className="w-6 h-6" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-black text-sm">🎉 XUẤT SẮC 10/10 CÂU: ĐÃ THƯỞNG +1 CREDIT!</div>
-                    <div className="text-xs text-amber-800 dark:text-amber-300">
-                      Chúc mừng bạn đã làm đúng cả 10 câu! 1 credit đã được cộng vào số dư để đổi quà học tập.
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 border-2 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <Coins className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <div className="font-black text-base flex items-center gap-2">
+                        <span>🎉 XUẤT SẮC 10/10 CÂU: ĐÃ THƯỞNG +1 CREDIT!</span>
+                      </div>
+                      <div className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                        Bạn đã trả lời đúng toàn bộ 10 câu hỏi! 1 credit đã được cộng trực tiếp vào ví quà tặng.
+                      </div>
                     </div>
                   </div>
+                  {onNavigateToRewards && (
+                    <button
+                      onClick={onNavigateToRewards}
+                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow transition-all shrink-0 flex items-center gap-1.5"
+                    >
+                      <Coins className="w-3.5 h-3.5" />
+                      <span>Đổi quà tặng ngay ({userCredits} 🪙)</span>
+                    </button>
+                  )}
                 </div>
               ) : activeQuestions.length === 10 ? (
-                <div className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-300 text-xs flex items-center justify-center gap-2">
+                <div className="p-4 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 text-xs flex flex-wrap items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700">
                   <Coins className="w-4 h-4 text-amber-500" />
                   <span>Em đã đúng <strong>{correctCount}/10</strong> câu. Hãy cố gắng trả lời đúng cả 10 câu ở lượt tới để nhận thưởng <strong>+1 credit</strong> nhé!</span>
                 </div>
