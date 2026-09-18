@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+
 import {
   AlertCircle,
   ArrowRight,
@@ -94,6 +94,29 @@ const GRADE_OPTIONS: GradeLevel[] = [
   "Lớp 8",
   "Lớp 9",
 ];
+
+const SUBJECT_OPTIONS = [
+  "Toán học",
+  "Tiếng Việt",
+  "Ngữ văn",
+  "Tiếng Anh",
+  "Khoa học tự nhiên",
+  "Vật lý",
+  "Hóa học",
+  "Sinh học",
+  "Lịch sử",
+  "Địa lý",
+  "Lịch sử và Địa lý",
+  "Tin học",
+  "Công nghệ",
+  "Giáo dục công dân",
+  "Đạo đức",
+  "Tự nhiên và Xã hội",
+  "Khoa học",
+  "Âm nhạc",
+  "Mĩ thuật",
+  "Giáo dục thể chất",
+] as const;
 
 // =========================================================
 // IMAGE COMPRESSION
@@ -211,9 +234,23 @@ export default function SmartNotesApp() {
     "upload"
   );
 
-  const [selectedSubjectPreset, setSelectedSubjectPreset] = useState(
-    "KHTN 6 (Kết nối tri thức)"
-  );
+  const [selectedSubject, setSelectedSubject] =
+    useState("Khoa học tự nhiên");
+
+  const [selectedGrade, setSelectedGrade] =
+    useState<GradeLevel>("Lớp 6");
+
+  const matchingPresetKey = Object.keys(curriculumPresets).find((key) => {
+    const preset = curriculumPresets[key];
+
+    return (
+      preset.grade === selectedGrade &&
+      preset.subject === selectedSubject
+    );
+  });
+
+  const selectedLearningContext =
+    `${selectedSubject} - ${selectedGrade} (Kết nối tri thức)`;
 
   const [typedText, setTypedText] = useState("");
   const [uploadedImagePreview, setUploadedImagePreview] = useState<
@@ -911,7 +948,7 @@ export default function SmartNotesApp() {
         },
         body: JSON.stringify({
           text: typedText.trim() || undefined,
-          subject: selectedSubjectPreset,
+          subject: selectedLearningContext,
           imageBase64: uploadedImagePreview || undefined,
         }),
       });
@@ -961,7 +998,7 @@ export default function SmartNotesApp() {
         id: `note-${Date.now()}`,
         title: analyzed.title || "Bài ghi số hóa",
         subject:
-          analyzed.subject || selectedSubjectPreset.split("(")[0].trim(),
+          analyzed.subject || selectedSubject,
         grade: analyzed.grade || userProfile.grade,
         createdAt: formatToDdMmYy(new Date()),
         summary: analyzed.summary || "",
@@ -977,7 +1014,7 @@ export default function SmartNotesApp() {
         id: `tx-${Date.now()}-scan`,
         type: "spend",
         amount: 2,
-        description: `Quét & phân tích vở (${selectedSubjectPreset})`,
+        description: `Quét & phân tích vở (${selectedSubject} - ${selectedGrade})`,
         timestamp: `${new Date().toLocaleTimeString("vi-VN", {
           hour: "2-digit",
           minute: "2-digit",
@@ -1009,15 +1046,23 @@ export default function SmartNotesApp() {
   };
 
   const handleLoadSamplePreset = () => {
-    const preset =
-      curriculumPresets[selectedSubjectPreset] ||
-      curriculumPresets["KHTN 6 (Kết nối tri thức)"];
+    if (!matchingPresetKey) {
+      setAnalysisError(
+        `Hiện chưa có bài mẫu cho ${selectedSubject} - ${selectedGrade}. ` +
+          "Bạn vẫn có thể tải ảnh, chụp ảnh hoặc nhập nội dung để Gemini phân tích bình thường."
+      );
 
-    if (!preset) return;
+      setAnalysisResult(null);
+      return;
+    }
+
+    const preset = curriculumPresets[matchingPresetKey];
 
     setAnalysisResult(preset);
     setAnalysisError(null);
-    setAnalysisSuccessToast("Đã tải bài phân tích mẫu.");
+    setAnalysisSuccessToast(
+      `Đã tải bài mẫu ${selectedSubject} - ${selectedGrade}.`
+    );
   };
 
   // =========================================================
@@ -1030,8 +1075,8 @@ export default function SmartNotesApp() {
     text += "SMARTNOTES AI - BẢN SỐ HÓA VỞ GHI\n";
     text += "=====================================\n\n";
     text += `BÀI: ${analysisResult.title}\n`;
-    text += `MÔN: ${analysisResult.subject || selectedSubjectPreset}\n`;
-    text += `KHỐI: ${analysisResult.grade || userProfile.grade}\n\n`;
+    text += `MÔN: ${analysisResult.subject || selectedSubject}\n`;
+    text += `KHỐI: ${analysisResult.grade || selectedGrade}\n\n`;
     text += `TÓM TẮT:\n${analysisResult.summary}\n\n`;
 
     if (analysisResult.extractedText) {
@@ -1626,7 +1671,7 @@ export default function SmartNotesApp() {
             <section
               className={`p-6 md:p-8 rounded-3xl border ${cardClasses} space-y-6`}
             >
-              <div className="flex flex-wrap gap-4 justify-between items-start">
+              <div className="flex flex-col lg:flex-row gap-4 justify-between items-start">
                 <div>
                   <h2 className="text-xl font-black">
                     Quét & phân tích vở ghi
@@ -1636,17 +1681,75 @@ export default function SmartNotesApp() {
                   </p>
                 </div>
 
-                <select
-                  value={selectedSubjectPreset}
-                  onChange={(e) => setSelectedSubjectPreset(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold"
-                >
-                  {Object.keys(curriculumPresets).map((key) => (
-                    <option key={key} value={key}>
-                      {key}
-                    </option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-2 gap-3 w-full lg:w-auto">
+                  {/* MÔN HỌC */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-300">
+                      Môn học
+                    </label>
+
+                    <select
+                      value={selectedSubject}
+                      onChange={(e) => {
+                        setSelectedSubject(e.target.value);
+                        setAnalysisResult(null);
+                        setAnalysisError(null);
+                        setAnalysisSuccessToast(null);
+                      }}
+                      className="
+                        w-full sm:min-w-[210px]
+                        px-3.5 py-2.5
+                        rounded-xl
+                        border border-zinc-300 dark:border-zinc-700
+                        bg-white dark:bg-zinc-800
+                        text-sm font-semibold
+                        text-zinc-900 dark:text-zinc-100
+                        focus:outline-none
+                        focus:ring-2 focus:ring-indigo-500
+                      "
+                    >
+                      {SUBJECT_OPTIONS.map((subject) => (
+                        <option key={subject} value={subject}>
+                          {subject}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* KHỐI LỚP */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-300">
+                      Khối lớp
+                    </label>
+
+                    <select
+                      value={selectedGrade}
+                      onChange={(e) => {
+                        setSelectedGrade(e.target.value as GradeLevel);
+                        setAnalysisResult(null);
+                        setAnalysisError(null);
+                        setAnalysisSuccessToast(null);
+                      }}
+                      className="
+                        w-full sm:min-w-[135px]
+                        px-3.5 py-2.5
+                        rounded-xl
+                        border border-zinc-300 dark:border-zinc-700
+                        bg-white dark:bg-zinc-800
+                        text-sm font-semibold
+                        text-zinc-900 dark:text-zinc-100
+                        focus:outline-none
+                        focus:ring-2 focus:ring-indigo-500
+                      "
+                    >
+                      {GRADE_OPTIONS.map((grade) => (
+                        <option key={grade} value={grade}>
+                          {grade}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-xs font-bold">
@@ -1887,8 +1990,8 @@ export default function SmartNotesApp() {
                         </h3>
 
                         <p className="text-xs text-zinc-500 mt-1">
-                          {analysisResult.subject || selectedSubjectPreset} •{" "}
-                          {analysisResult.grade || userProfile.grade}
+                          {analysisResult.subject || selectedSubject} •{" "}
+                          {analysisResult.grade || selectedGrade}
                         </p>
                       </div>
 
