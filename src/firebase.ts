@@ -1,14 +1,19 @@
 import {
-  initializeApp,
-  getApps,
   getApp,
+  getApps,
+  initializeApp,
 } from "firebase/app";
 
-import { getAuth } from "firebase/auth";
+import {
+  getAuth,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
 
 const firebaseConfig = {
-  // GIỮ NGUYÊN CONFIG FIREBASE HIỆN TẠI CỦA BẠN
-  apiKey: "...",
+  // Dùng API key Firebase Web mà Firebase Console đã cấp cho bạn
+  apiKey: "YOUR_FIREBASE_WEB_API_KEY",
+
   authDomain: "smartnote-af664.firebaseapp.com",
   projectId: "smartnote-af664",
   storageBucket: "smartnote-af664.firebasestorage.app",
@@ -22,3 +27,15 @@ const app =
     : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
+
+setPersistence(
+  auth,
+  browserLocalPersistence
+).catch((error) => {
+  console.error(
+    "Firebase persistence error:",
+    error
+  );
+});
+
+export default app;
