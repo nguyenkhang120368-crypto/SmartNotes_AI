@@ -95,6 +95,16 @@ const GRADE_OPTIONS: GradeLevel[] = [
   "Lớp 9",
 ];
 
+// =========================================================
+// IMAGE COMPRESSION
+// Giữ request JSON đủ nhỏ để tránh HTTP 413 trên Vercel.
+// =========================================================
+const MAX_IMAGE_EDGE = 1600;
+const MAX_IMAGE_DATA_URL_LENGTH = 2_800_000;
+const MIN_JPEG_QUALITY = 0.55;
+const INITIAL_JPEG_QUALITY = 0.82;
+const MAX_SOURCE_FILE_SIZE = 20 * 1024 * 1024;
+
 export default function SmartNotesApp() {
   // =========================================================
   // AUTHENTICATION
@@ -595,45 +605,197 @@ export default function SmartNotesApp() {
     }
   };
 
+  const createCompressedJpeg = (
+    source: CanvasImageSource,
+    sourceWidth: number,
+    sourceHeight: number
+  ): string => {
+    if (!sourceWidth || !sourceHeight) {
+      throw new Error("Không đọc được kích thước ảnh.");
+    }
+
+    let scale = Math.min(
+      1,
+      MAX_IMAGE_EDGE / Math.max(sourceWidth, sourceHeight)
+    );
+
+    let width = Math.max(1, Math.round(sourceWidth * scale));
+    let height = Math.max(1, Math.round(sourceHeight * scale));
+
+    let quality = INITIAL_JPEG_QUALITY;
+
+    const render = (
+      targetWidth: number,
+      targetHeight: number,
+      targetQuality: number
+    ) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        throw new Error("Trình duyệt không hỗ trợ xử lý ảnh bằng Canvas.");
+      }
+
+      // Nền trắng giúp chữ vở rõ hơn khi chuyển PNG/WebP sang JPEG.
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      ctx.drawImage(
+        source,
+        0,
+        0,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        targetWidth,
+        targetHeight
+      );
+
+      return canvas.toDataURL("image/jpeg", targetQuality);
+    };
+
+    let dataUrl = render(width, height, quality);
+
+    // Bước 1: giảm chất lượng từ từ nhưng vẫn giữ chữ đủ rõ cho OCR.
+    while (
+      dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH &&
+      quality > MIN_JPEG_QUALITY
+    ) {
+      quality = Math.max(MIN_JPEG_QUALITY, quality - 0.07);
+      dataUrl = render(width, height, quality);
+    }
+
+    // Bước 2: nếu ảnh vẫn lớn thì giảm thêm kích thước.
+    while (
+      dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH &&
+      Math.max(width, height) > 1000
+    ) {
+      width = Math.max(1, Math.round(width * 0.85));
+      height = Math.max(1, Math.round(height * 0.85));
+      dataUrl = render(width, height, quality);
+    }
+
+    if (dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
+      throw new Error(
+        "Ảnh vẫn quá lớn sau khi nén. Hãy chụp gần trang vở hơn hoặc chọn ảnh nhỏ hơn."
+      );
+    }
+
+    return dataUrl;
+  };
+
+  const loadImageFromFile = (file: File): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(
+          new Error(
+            "Không thể đọc ảnh. Hãy dùng JPG, JPEG, PNG hoặc WebP."
+          )
+        );
+      };
+
+      image.src = objectUrl;
+    });
+  };
+
   const capturePhoto = () => {
     if (!videoRef.current) return;
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current || document.createElement("canvas");
+    try {
+      const video = videoRef.current;
+      const width = video.videoWidth || 1280;
+      const height = video.videoHeight || 720;
 
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
+      const dataUrl = createCompressedJpeg(
+        video,
+        width,
+        height
+      );
 
-    const ctx = canvas.getContext("2d");
+      setUploadedImagePreview(dataUrl);
+      setAnalysisError(null);
+      stopCameraStream();
+    } catch (error: any) {
+      console.error("Capture/compression error:", error);
 
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
-
-    setUploadedImagePreview(dataUrl);
-    stopCameraStream();
+      setAnalysisError(
+        error?.message ||
+          "Không thể xử lý ảnh từ camera. Vui lòng thử lại."
+      );
+    }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
 
+    // Cho phép chọn lại đúng cùng một file sau đó.
+    e.target.value = "";
+
     if (!file) return;
+
+    setAnalysisError(null);
+    setAnalysisSuccessToast(null);
 
     if (!file.type.startsWith("image/")) {
       setAnalysisError("Vui lòng chọn tệp hình ảnh.");
       return;
     }
 
-    const reader = new FileReader();
+    if (file.size > MAX_SOURCE_FILE_SIZE) {
+      setAnalysisError(
+        "Ảnh gốc lớn hơn 20 MB. Vui lòng chọn ảnh nhỏ hơn."
+      );
+      return;
+    }
 
-    reader.onload = () => {
-      setUploadedImagePreview(String(reader.result || ""));
-      setAnalysisError(null);
-    };
+    try {
+      const image = await loadImageFromFile(file);
 
-    reader.readAsDataURL(file);
+      const compressedDataUrl = createCompressedJpeg(
+        image,
+        image.naturalWidth,
+        image.naturalHeight
+      );
+
+      setUploadedImagePreview(compressedDataUrl);
+
+      const estimatedKb = Math.round(
+        (compressedDataUrl.length * 0.75) / 1024
+      );
+
+      setAnalysisSuccessToast(
+        `Ảnh đã được tối ưu còn khoảng ${estimatedKb.toLocaleString(
+          "vi-VN"
+        )} KB, sẵn sàng gửi Gemini.`
+      );
+    } catch (error: any) {
+      console.error("Image compression error:", error);
+
+      setUploadedImagePreview(null);
+
+      setAnalysisError(
+        error?.message ||
+          "Không thể xử lý ảnh. Vui lòng chọn ảnh JPG/PNG khác."
+      );
+    }
   };
 
   // =========================================================
@@ -710,6 +872,16 @@ export default function SmartNotesApp() {
       return;
     }
 
+    if (
+      uploadedImagePreview &&
+      uploadedImagePreview.length > MAX_IMAGE_DATA_URL_LENGTH
+    ) {
+      setAnalysisError(
+        "Ảnh vẫn quá lớn để gửi lên máy chủ. Hãy chọn lại ảnh để SmartNotes tự nén."
+      );
+      return;
+    }
+
     if (credits < 2) {
       setInsufficientCreditsModal(true);
       return;
@@ -749,6 +921,12 @@ export default function SmartNotesApp() {
       try {
         resData = await response.json();
       } catch {
+        if (response.status === 413) {
+          throw new Error(
+            "Ảnh gửi lên vẫn quá lớn (HTTP 413). Hãy chọn lại ảnh để SmartNotes tự nén trước khi phân tích."
+          );
+        }
+
         throw new Error(
           `Server trả về dữ liệu không hợp lệ (HTTP ${response.status}).`
         );
