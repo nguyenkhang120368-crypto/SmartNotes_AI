@@ -12,7 +12,7 @@ import {
 
 const firebaseConfig = {
   // Dùng API key Firebase Web mà Firebase Console đã cấp cho bạn
-  apiKey: "YOUR_FIREBASE_WEB_API_KEY",
+  apiKey: "AIzaSyCZfNQLSVD_CVWoGcyBRdotsrGFrRMUM3s",
 
   authDomain: "smartnote-af664.firebaseapp.com",
   projectId: "smartnote-af664",
