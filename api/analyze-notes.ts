@@ -12,7 +12,7 @@ const GEMINI_MODELS = [
 ] as const;
 
 const MAX_TEXT_LENGTH = 50_000;
-const MAX_BASE64_LENGTH = 6_000_000;
+const MAX_BASE64_LENGTH = 3_000_000;
 
 // =========================================================
 // FIREBASE ADMIN
