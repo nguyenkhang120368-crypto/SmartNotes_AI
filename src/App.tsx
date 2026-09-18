@@ -55,6 +55,7 @@ import { NotebookArchive } from "./components/NotebookArchive";
 import { ProfileModal } from "./components/ProfileModal";
 import { ThemeStudioModal } from "./components/ThemeStudioModal";
 import { RewardShopView } from "./components/RewardShopView";
+import { FloatingAIChat } from "./components/FloatingAIChat";
 
 type MainTab =
   | "home"
@@ -134,7 +135,8 @@ export default function SmartNotesApp() {
   // =========================================================
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authMode, setAuthMode] =
+    useState<"login" | "register">("login");
   const [authNotice, setAuthNotice] = useState("");
 
   const [loginEmail, setLoginEmail] = useState("");
@@ -147,7 +149,8 @@ export default function SmartNotesApp() {
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
   const [regSchool, setRegSchool] = useState("");
-  const [regGrade, setRegGrade] = useState<GradeLevel>("Lớp 6");
+  const [regGrade, setRegGrade] =
+    useState<GradeLevel>("Lớp 6");
   const [regGender, setRegGender] = useState("Nam");
   const [regDob, setRegDob] = useState("");
   const [regError, setRegError] = useState("");
@@ -161,10 +164,13 @@ export default function SmartNotesApp() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+
         return {
           ...DEFAULT_PROFILE,
           ...parsed,
-          dob: parsed?.dob ? formatToDdMmYy(parsed.dob) : "",
+          dob: parsed?.dob
+            ? formatToDdMmYy(parsed.dob)
+            : "",
         };
       } catch {
         return DEFAULT_PROFILE;
@@ -177,62 +183,80 @@ export default function SmartNotesApp() {
   // =========================================================
   // APP NAVIGATION / THEME
   // =========================================================
-  const [activeTab, setActiveTab] = useState<MainTab>("home");
-  const [themeMode, setThemeMode] = useState<"light" | "dark" | "studio">(
-    "light"
-  );
-  const [accentColor, setAccentColor] = useState("#4f46e5");
-  const [showThemeModal, setShowThemeModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [activeTab, setActiveTab] =
+    useState<MainTab>("home");
+
+  const [themeMode, setThemeMode] = useState<
+    "light" | "dark" | "studio"
+  >("light");
+
+  const [accentColor, setAccentColor] =
+    useState("#4f46e5");
+
+  const [showThemeModal, setShowThemeModal] =
+    useState(false);
+
+  const [showProfileModal, setShowProfileModal] =
+    useState(false);
 
   // =========================================================
   // CREDITS / REWARDS
   // =========================================================
   const [credits, setCredits] = useState<number>(() => {
     const saved = localStorage.getItem("sn_user_credits");
-    const parsed = saved !== null ? Number(saved) : NaN;
-    return Number.isFinite(parsed) ? parsed : 200;
+    const parsed =
+      saved !== null ? Number(saved) : NaN;
+
+    return Number.isFinite(parsed)
+      ? parsed
+      : 200;
   });
 
-  const [creditTransactions, setCreditTransactions] = useState<
-    CreditTransaction[]
-  >(() => {
-    const saved = localStorage.getItem("sn_credit_transactions");
+  const [creditTransactions, setCreditTransactions] =
+    useState<CreditTransaction[]>(() => {
+      const saved = localStorage.getItem(
+        "sn_credit_transactions"
+      );
 
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [INITIAL_CREDIT_TRANSACTION];
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [INITIAL_CREDIT_TRANSACTION];
+        }
       }
-    }
 
-    return [INITIAL_CREDIT_TRANSACTION];
-  });
+      return [INITIAL_CREDIT_TRANSACTION];
+    });
 
-  const [redeemedGifts, setRedeemedGifts] = useState<RedeemedGift[]>(() => {
-    const saved = localStorage.getItem("sn_redeemed_gifts");
+  const [redeemedGifts, setRedeemedGifts] =
+    useState<RedeemedGift[]>(() => {
+      const saved = localStorage.getItem(
+        "sn_redeemed_gifts"
+      );
 
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [];
+        }
       }
-    }
 
-    return [];
-  });
+      return [];
+    });
 
-  const [insufficientCreditsModal, setInsufficientCreditsModal] =
-    useState(false);
+  const [
+    insufficientCreditsModal,
+    setInsufficientCreditsModal,
+  ] = useState(false);
 
   // =========================================================
   // SCAN / GEMINI
   // =========================================================
-  const [inputMode, setInputMode] = useState<"upload" | "camera" | "typing">(
-    "upload"
-  );
+  const [inputMode, setInputMode] = useState<
+    "upload" | "camera" | "typing"
+  >("upload");
 
   const [selectedSubject, setSelectedSubject] =
     useState("Khoa học tự nhiên");
@@ -240,101 +264,161 @@ export default function SmartNotesApp() {
   const [selectedGrade, setSelectedGrade] =
     useState<GradeLevel>("Lớp 6");
 
-  const matchingPresetKey = Object.keys(curriculumPresets).find((key) => {
-    const preset = curriculumPresets[key];
+  const matchingPresetKey =
+    Object.keys(curriculumPresets).find((key) => {
+      const preset = curriculumPresets[key];
 
-    return (
-      preset.grade === selectedGrade &&
-      preset.subject === selectedSubject
-    );
-  });
+      return (
+        preset.grade === selectedGrade &&
+        preset.subject === selectedSubject
+      );
+    });
 
   const selectedLearningContext =
     `${selectedSubject} - ${selectedGrade} (Kết nối tri thức)`;
 
-  const [typedText, setTypedText] = useState("");
-  const [uploadedImagePreview, setUploadedImagePreview] = useState<
-    string | null
-  >(null);
+  const [typedText, setTypedText] =
+    useState("");
 
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] =
-    useState<AnalysisResult | null>(null);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [analysisSuccessToast, setAnalysisSuccessToast] = useState<
-    string | null
-  >(null);
+  const [
+    uploadedImagePreview,
+    setUploadedImagePreview,
+  ] = useState<string | null>(null);
 
-  const [revealedFlashcard, setRevealedFlashcard] = useState<
-    Record<number, boolean>
-  >({});
+  const [isAnalyzing, setIsAnalyzing] =
+    useState(false);
 
-  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
+  const [
+    analysisResult,
+    setAnalysisResult,
+  ] = useState<AnalysisResult | null>(
+    null
+  );
+
+  const [
+    analysisError,
+    setAnalysisError,
+  ] = useState<string | null>(null);
+
+  const [
+    analysisSuccessToast,
+    setAnalysisSuccessToast,
+  ] = useState<string | null>(null);
+
+  const [
+    revealedFlashcard,
+    setRevealedFlashcard,
+  ] = useState<Record<number, boolean>>(
+    {}
+  );
+
+  const resultsSectionRef =
+    useRef<HTMLDivElement | null>(null);
 
   // =========================================================
   // CAMERA
   // =========================================================
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [
+    isCameraActive,
+    setIsCameraActive,
+  ] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const [
+    cameraError,
+    setCameraError,
+  ] = useState<string | null>(null);
+
+  const videoRef =
+    useRef<HTMLVideoElement | null>(null);
+
+  const canvasRef =
+    useRef<HTMLCanvasElement | null>(null);
+
+  const streamRef =
+    useRef<MediaStream | null>(null);
 
   // =========================================================
   // SAVED NOTES
   // =========================================================
-  const [savedNotes, setSavedNotes] = useState<SavedNoteRecord[]>(() => {
-    const saved = localStorage.getItem("sn_saved_notes_archive");
+  const [savedNotes, setSavedNotes] =
+    useState<SavedNoteRecord[]>(() => {
+      const saved = localStorage.getItem(
+        "sn_saved_notes_archive"
+      );
 
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [];
+        }
       }
-    }
 
-    const preset = curriculumPresets["KHTN 6 (Kết nối tri thức)"];
+      const preset =
+        curriculumPresets[
+          "KHTN 6 (Kết nối tri thức)"
+        ];
 
-    if (!preset) return [];
+      if (!preset) return [];
 
-    return [
-      {
-        id: "note-init-1",
-        title: preset.title,
-        subject: preset.subject || "Khoa học tự nhiên",
-        grade: preset.grade || "Lớp 6",
-        createdAt: formatToDdMmYy(new Date()),
-        summary: preset.summary,
-        fullData: preset,
-      },
-    ];
-  });
+      return [
+        {
+          id: "note-init-1",
+          title: preset.title,
+          subject:
+            preset.subject ||
+            "Khoa học tự nhiên",
+          grade:
+            preset.grade ||
+            "Lớp 6",
+          createdAt:
+            formatToDdMmYy(
+              new Date()
+            ),
+          summary: preset.summary,
+          fullData: preset,
+        },
+      ];
+    });
 
   // =========================================================
   // FIREBASE SESSION
   // =========================================================
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser && firebaseUser.emailVerified) {
-        setIsLoggedIn(true);
+    const unsubscribe =
+      onAuthStateChanged(
+        auth,
+        (firebaseUser) => {
+          if (
+            firebaseUser &&
+            firebaseUser.emailVerified
+          ) {
+            setIsLoggedIn(true);
 
-        setUserProfile((prev) => ({
-          ...prev,
-          fullName: firebaseUser.displayName || prev.fullName,
-          email: firebaseUser.email || prev.email,
-          username:
-            prev.username ||
-            firebaseUser.email?.split("@")[0] ||
-            "smartnotes_user",
-        }));
-      } else {
-        setIsLoggedIn(false);
-      }
+            setUserProfile(
+              (prev) => ({
+                ...prev,
+                fullName:
+                  firebaseUser.displayName ||
+                  prev.fullName,
+                email:
+                  firebaseUser.email ||
+                  prev.email,
+                username:
+                  prev.username ||
+                  firebaseUser.email?.split(
+                    "@"
+                  )[0] ||
+                  "smartnotes_user",
+              })
+            );
+          } else {
+            setIsLoggedIn(false);
+          }
 
-      setAuthLoading(false);
-    });
+          setAuthLoading(false);
+        }
+      );
 
     return unsubscribe;
   }, []);
@@ -343,31 +427,52 @@ export default function SmartNotesApp() {
   // LOCAL STORAGE
   // =========================================================
   useEffect(() => {
-    localStorage.setItem("sn_user_profile", JSON.stringify(userProfile));
+    localStorage.setItem(
+      "sn_user_profile",
+      JSON.stringify(userProfile)
+    );
   }, [userProfile]);
 
   useEffect(() => {
-    localStorage.setItem("sn_user_credits", String(credits));
+    localStorage.setItem(
+      "sn_user_credits",
+      String(credits)
+    );
   }, [credits]);
 
   useEffect(() => {
     localStorage.setItem(
       "sn_credit_transactions",
-      JSON.stringify(creditTransactions)
+      JSON.stringify(
+        creditTransactions
+      )
     );
   }, [creditTransactions]);
 
   useEffect(() => {
-    localStorage.setItem("sn_redeemed_gifts", JSON.stringify(redeemedGifts));
+    localStorage.setItem(
+      "sn_redeemed_gifts",
+      JSON.stringify(redeemedGifts)
+    );
   }, [redeemedGifts]);
 
   useEffect(() => {
-    localStorage.setItem("sn_saved_notes_archive", JSON.stringify(savedNotes));
+    localStorage.setItem(
+      "sn_saved_notes_archive",
+      JSON.stringify(savedNotes)
+    );
   }, [savedNotes]);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("sn_theme_mode");
-    const savedColor = localStorage.getItem("sn_accent_color");
+    const savedTheme =
+      localStorage.getItem(
+        "sn_theme_mode"
+      );
+
+    const savedColor =
+      localStorage.getItem(
+        "sn_accent_color"
+      );
 
     if (
       savedTheme === "light" ||
@@ -387,7 +492,12 @@ export default function SmartNotesApp() {
   // =========================================================
   const stopCameraStream = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current
+        .getTracks()
+        .forEach((track) =>
+          track.stop()
+        );
+
       streamRef.current = null;
     }
 
@@ -403,7 +513,11 @@ export default function SmartNotesApp() {
   useEffect(() => {
     return () => {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current
+          .getTracks()
+          .forEach((track) =>
+            track.stop()
+          );
       }
     };
   }, []);
@@ -417,271 +531,440 @@ export default function SmartNotesApp() {
     setAuthNotice("");
   };
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLoginSubmit =
+    async (
+      e: React.FormEvent
+    ) => {
+      e.preventDefault();
 
-    resetAuthMessages();
+      resetAuthMessages();
 
-    const email = loginEmail.trim();
+      const email =
+        loginEmail.trim();
 
-    if (!email || !loginPassword) {
-      setLoginError("Vui lòng nhập đầy đủ email và mật khẩu.");
-      return;
-    }
-
-    try {
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        loginPassword
-      );
-
-      const firebaseUser = credential.user;
-
-      if (!firebaseUser.emailVerified) {
-        try {
-          await sendEmailVerification(firebaseUser);
-        } catch (verifyError) {
-          console.warn("Không thể gửi lại email xác minh:", verifyError);
-        }
-
-        await signOut(auth);
-
+      if (
+        !email ||
+        !loginPassword
+      ) {
         setLoginError(
-          "Email chưa được xác minh. Hãy kiểm tra hộp thư, xác minh tài khoản rồi đăng nhập lại."
+          "Vui lòng nhập đầy đủ email và mật khẩu."
         );
         return;
       }
 
-      setUserProfile((prev) => ({
-        ...prev,
-        fullName: firebaseUser.displayName || prev.fullName,
-        email: firebaseUser.email || email,
-      }));
-
-      setLoginPassword("");
-      setActiveTab("home");
-      setIsLoggedIn(true);
-    } catch (error: any) {
-      console.error("Firebase login error:", error);
-
-      switch (error?.code) {
-        case "auth/invalid-email":
-          setLoginError("Địa chỉ email không hợp lệ.");
-          break;
-
-        case "auth/invalid-credential":
-        case "auth/user-not-found":
-        case "auth/wrong-password":
-          setLoginError("Email hoặc mật khẩu không chính xác.");
-          break;
-
-        case "auth/user-disabled":
-          setLoginError("Tài khoản đã bị vô hiệu hóa.");
-          break;
-
-        case "auth/too-many-requests":
-          setLoginError(
-            "Có quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau."
+      try {
+        const credential =
+          await signInWithEmailAndPassword(
+            auth,
+            email,
+            loginPassword
           );
-          break;
 
-        case "auth/network-request-failed":
-          setLoginError(
-            "Không thể kết nối Firebase. Vui lòng kiểm tra Internet."
-          );
-          break;
+        const firebaseUser =
+          credential.user;
 
-        default:
+        if (
+          !firebaseUser.emailVerified
+        ) {
+          try {
+            await sendEmailVerification(
+              firebaseUser
+            );
+          } catch (
+            verifyError
+          ) {
+            console.warn(
+              "Không thể gửi lại email xác minh:",
+              verifyError
+            );
+          }
+
+          await signOut(auth);
+
           setLoginError(
-            error?.message || "Không thể đăng nhập. Vui lòng thử lại."
+            "Email chưa được xác minh. Hãy kiểm tra hộp thư, xác minh tài khoản rồi đăng nhập lại."
           );
+
+          return;
+        }
+
+        setUserProfile(
+          (prev) => ({
+            ...prev,
+            fullName:
+              firebaseUser.displayName ||
+              prev.fullName,
+            email:
+              firebaseUser.email ||
+              email,
+          })
+        );
+
+        setLoginPassword("");
+        setActiveTab("home");
+        setIsLoggedIn(true);
+      } catch (error: any) {
+        console.error(
+          "Firebase login error:",
+          error
+        );
+
+        switch (error?.code) {
+          case "auth/invalid-email":
+            setLoginError(
+              "Địa chỉ email không hợp lệ."
+            );
+            break;
+
+          case "auth/invalid-credential":
+          case "auth/user-not-found":
+          case "auth/wrong-password":
+            setLoginError(
+              "Email hoặc mật khẩu không chính xác."
+            );
+            break;
+
+          case "auth/user-disabled":
+            setLoginError(
+              "Tài khoản đã bị vô hiệu hóa."
+            );
+            break;
+
+          case "auth/too-many-requests":
+            setLoginError(
+              "Có quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau."
+            );
+            break;
+
+          case "auth/network-request-failed":
+            setLoginError(
+              "Không thể kết nối Firebase. Vui lòng kiểm tra Internet."
+            );
+            break;
+
+          default:
+            setLoginError(
+              error?.message ||
+                "Không thể đăng nhập. Vui lòng thử lại."
+            );
+        }
       }
-    }
-  };
+    };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegisterSubmit =
+    async (
+      e: React.FormEvent
+    ) => {
+      e.preventDefault();
 
-    resetAuthMessages();
+      resetAuthMessages();
 
-    const email = regEmail.trim();
-    const username = regUsername.trim();
-    const fullName = regFullName.trim();
+      const email =
+        regEmail.trim();
 
-    if (!email || !username || !regPassword || !regConfirmPassword) {
-      setRegError("Vui lòng điền đầy đủ các thông tin bắt buộc.");
-      return;
-    }
+      const username =
+        regUsername.trim();
 
-    if (regPassword.length < 8) {
-      setRegError("Mật khẩu phải có ít nhất 8 ký tự.");
-      return;
-    }
+      const fullName =
+        regFullName.trim();
 
-    if (regPassword !== regConfirmPassword) {
-      setRegError("Mật khẩu xác nhận không trùng khớp.");
-      return;
-    }
-
-    try {
-      const credential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        regPassword
-      );
-
-      const firebaseUser = credential.user;
-
-      await updateProfile(firebaseUser, {
-        displayName: fullName || username,
-      });
-
-      await sendEmailVerification(firebaseUser);
-
-      setUserProfile({
-        fullName: fullName || username,
-        email,
-        username,
-        school: regSchool.trim(),
-        grade: regGrade,
-        gender: regGender,
-        dob: regDob ? formatToDdMmYy(regDob) : "",
-      });
-
-      // Không cho vào ứng dụng trước khi xác minh email.
-      await signOut(auth);
-
-      setAuthMode("login");
-      setLoginEmail(email);
-      setLoginPassword("");
-      setRegPassword("");
-      setRegConfirmPassword("");
-
-      setAuthNotice(
-        "Đăng ký thành công. Firebase đã gửi email xác minh. Hãy xác minh email rồi đăng nhập."
-      );
-    } catch (error: any) {
-      console.error("Firebase register error:", error);
-
-      switch (error?.code) {
-        case "auth/email-already-in-use":
-          setRegError("Email này đã được đăng ký.");
-          break;
-
-        case "auth/invalid-email":
-          setRegError("Email không hợp lệ.");
-          break;
-
-        case "auth/weak-password":
-          setRegError("Mật khẩu chưa đủ mạnh.");
-          break;
-
-        case "auth/network-request-failed":
-          setRegError(
-            "Không thể kết nối Firebase. Vui lòng kiểm tra Internet."
-          );
-          break;
-
-        default:
-          setRegError(
-            error?.message || "Không thể tạo tài khoản. Vui lòng thử lại."
-          );
+      if (
+        !email ||
+        !username ||
+        !regPassword ||
+        !regConfirmPassword
+      ) {
+        setRegError(
+          "Vui lòng điền đầy đủ các thông tin bắt buộc."
+        );
+        return;
       }
-    }
-  };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Firebase logout error:", error);
-    } finally {
-      stopCameraStream();
-      setIsLoggedIn(false);
-      setActiveTab("home");
-      setLoginPassword("");
-      setAnalysisError(null);
-      setAnalysisSuccessToast(null);
-    }
-  };
+      if (
+        regPassword.length < 8
+      ) {
+        setRegError(
+          "Mật khẩu phải có ít nhất 8 ký tự."
+        );
+        return;
+      }
+
+      if (
+        regPassword !==
+        regConfirmPassword
+      ) {
+        setRegError(
+          "Mật khẩu xác nhận không trùng khớp."
+        );
+        return;
+      }
+
+      try {
+        const credential =
+          await createUserWithEmailAndPassword(
+            auth,
+            email,
+            regPassword
+          );
+
+        const firebaseUser =
+          credential.user;
+
+        await updateProfile(
+          firebaseUser,
+          {
+            displayName:
+              fullName ||
+              username,
+          }
+        );
+
+        await sendEmailVerification(
+          firebaseUser
+        );
+
+        setUserProfile({
+          fullName:
+            fullName ||
+            username,
+          email,
+          username,
+          school:
+            regSchool.trim(),
+          grade:
+            regGrade,
+          gender:
+            regGender,
+          dob:
+            regDob
+              ? formatToDdMmYy(
+                  regDob
+                )
+              : "",
+        });
+
+        await signOut(auth);
+
+        setAuthMode("login");
+        setLoginEmail(email);
+        setLoginPassword("");
+        setRegPassword("");
+        setRegConfirmPassword(
+          ""
+        );
+
+        setAuthNotice(
+          "Đăng ký thành công. Firebase đã gửi email xác minh. Hãy xác minh email rồi đăng nhập."
+        );
+      } catch (error: any) {
+        console.error(
+          "Firebase register error:",
+          error
+        );
+
+        switch (error?.code) {
+          case "auth/email-already-in-use":
+            setRegError(
+              "Email này đã được đăng ký."
+            );
+            break;
+
+          case "auth/invalid-email":
+            setRegError(
+              "Email không hợp lệ."
+            );
+            break;
+
+          case "auth/weak-password":
+            setRegError(
+              "Mật khẩu chưa đủ mạnh."
+            );
+            break;
+
+          case "auth/network-request-failed":
+            setRegError(
+              "Không thể kết nối Firebase. Vui lòng kiểm tra Internet."
+            );
+            break;
+
+          default:
+            setRegError(
+              error?.message ||
+                "Không thể tạo tài khoản. Vui lòng thử lại."
+            );
+        }
+      }
+    };
+
+  const handleLogout =
+    async () => {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error(
+          "Firebase logout error:",
+          error
+        );
+      } finally {
+        stopCameraStream();
+        setIsLoggedIn(false);
+        setActiveTab("home");
+        setLoginPassword("");
+        setAnalysisError(null);
+        setAnalysisSuccessToast(
+          null
+        );
+      }
+    };
 
   // =========================================================
   // CAMERA HANDLERS
   // =========================================================
-  const startCamera = async () => {
-    setCameraError(null);
+  const startCamera =
+    async () => {
+      setCameraError(null);
 
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Trình duyệt không hỗ trợ camera.");
+      try {
+        if (
+          !navigator.mediaDevices
+            ?.getUserMedia
+        ) {
+          throw new Error(
+            "Trình duyệt không hỗ trợ camera."
+          );
+        }
+
+        const stream =
+          await navigator.mediaDevices.getUserMedia(
+            {
+              video: {
+                facingMode:
+                  "environment",
+                width: {
+                  ideal: 1280,
+                },
+                height: {
+                  ideal: 720,
+                },
+              },
+            }
+          );
+
+        streamRef.current =
+          stream;
+
+        if (
+          videoRef.current
+        ) {
+          videoRef.current.srcObject =
+            stream;
+
+          await videoRef.current.play();
+        }
+
+        setIsCameraActive(
+          true
+        );
+      } catch (error) {
+        console.error(
+          "Camera error:",
+          error
+        );
+
+        setCameraError(
+          "Không thể mở camera. Hãy cấp quyền camera hoặc dùng chế độ tải ảnh."
+        );
+
+        setIsCameraActive(
+          false
+        );
       }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      setIsCameraActive(true);
-    } catch (error) {
-      console.error("Camera error:", error);
-      setCameraError(
-        "Không thể mở camera. Hãy cấp quyền camera hoặc dùng chế độ tải ảnh."
-      );
-      setIsCameraActive(false);
-    }
-  };
+    };
 
   const createCompressedJpeg = (
     source: CanvasImageSource,
     sourceWidth: number,
     sourceHeight: number
   ): string => {
-    if (!sourceWidth || !sourceHeight) {
-      throw new Error("Không đọc được kích thước ảnh.");
+    if (
+      !sourceWidth ||
+      !sourceHeight
+    ) {
+      throw new Error(
+        "Không đọc được kích thước ảnh."
+      );
     }
 
-    let scale = Math.min(
+    const scale = Math.min(
       1,
-      MAX_IMAGE_EDGE / Math.max(sourceWidth, sourceHeight)
+      MAX_IMAGE_EDGE /
+        Math.max(
+          sourceWidth,
+          sourceHeight
+        )
     );
 
-    let width = Math.max(1, Math.round(sourceWidth * scale));
-    let height = Math.max(1, Math.round(sourceHeight * scale));
+    let width = Math.max(
+      1,
+      Math.round(
+        sourceWidth *
+          scale
+      )
+    );
 
-    let quality = INITIAL_JPEG_QUALITY;
+    let height = Math.max(
+      1,
+      Math.round(
+        sourceHeight *
+          scale
+      )
+    );
+
+    let quality =
+      INITIAL_JPEG_QUALITY;
 
     const render = (
       targetWidth: number,
       targetHeight: number,
       targetQuality: number
     ) => {
-      const canvas = document.createElement("canvas");
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
+      const canvas =
+        document.createElement(
+          "canvas"
+        );
 
-      const ctx = canvas.getContext("2d");
+      canvas.width =
+        targetWidth;
+
+      canvas.height =
+        targetHeight;
+
+      const ctx =
+        canvas.getContext(
+          "2d"
+        );
 
       if (!ctx) {
-        throw new Error("Trình duyệt không hỗ trợ xử lý ảnh bằng Canvas.");
+        throw new Error(
+          "Trình duyệt không hỗ trợ xử lý ảnh bằng Canvas."
+        );
       }
 
-      // Nền trắng giúp chữ vở rõ hơn khi chuyển PNG/WebP sang JPEG.
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, targetWidth, targetHeight);
+      ctx.fillStyle =
+        "#ffffff";
 
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
+      ctx.fillRect(
+        0,
+        0,
+        targetWidth,
+        targetHeight
+      );
+
+      ctx.imageSmoothingEnabled =
+        true;
+
+      ctx.imageSmoothingQuality =
+        "high";
 
       ctx.drawImage(
         source,
@@ -695,31 +978,72 @@ export default function SmartNotesApp() {
         targetHeight
       );
 
-      return canvas.toDataURL("image/jpeg", targetQuality);
+      return canvas.toDataURL(
+        "image/jpeg",
+        targetQuality
+      );
     };
 
-    let dataUrl = render(width, height, quality);
+    let dataUrl =
+      render(
+        width,
+        height,
+        quality
+      );
 
-    // Bước 1: giảm chất lượng từ từ nhưng vẫn giữ chữ đủ rõ cho OCR.
     while (
-      dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH &&
-      quality > MIN_JPEG_QUALITY
+      dataUrl.length >
+        MAX_IMAGE_DATA_URL_LENGTH &&
+      quality >
+        MIN_JPEG_QUALITY
     ) {
-      quality = Math.max(MIN_JPEG_QUALITY, quality - 0.07);
-      dataUrl = render(width, height, quality);
+      quality = Math.max(
+        MIN_JPEG_QUALITY,
+        quality - 0.07
+      );
+
+      dataUrl =
+        render(
+          width,
+          height,
+          quality
+        );
     }
 
-    // Bước 2: nếu ảnh vẫn lớn thì giảm thêm kích thước.
     while (
-      dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH &&
-      Math.max(width, height) > 1000
+      dataUrl.length >
+        MAX_IMAGE_DATA_URL_LENGTH &&
+      Math.max(
+        width,
+        height
+      ) > 1000
     ) {
-      width = Math.max(1, Math.round(width * 0.85));
-      height = Math.max(1, Math.round(height * 0.85));
-      dataUrl = render(width, height, quality);
+      width = Math.max(
+        1,
+        Math.round(
+          width * 0.85
+        )
+      );
+
+      height = Math.max(
+        1,
+        Math.round(
+          height * 0.85
+        )
+      );
+
+      dataUrl =
+        render(
+          width,
+          height,
+          quality
+        );
     }
 
-    if (dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
+    if (
+      dataUrl.length >
+      MAX_IMAGE_DATA_URL_LENGTH
+    ) {
       throw new Error(
         "Ảnh vẫn quá lớn sau khi nén. Hãy chụp gần trang vở hơn hoặc chọn ảnh nhỏ hơn."
       );
@@ -728,48 +1052,83 @@ export default function SmartNotesApp() {
     return dataUrl;
   };
 
-  const loadImageFromFile = (file: File): Promise<HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-      const objectUrl = URL.createObjectURL(file);
-      const image = new Image();
+  const loadImageFromFile = (
+    file: File
+  ): Promise<HTMLImageElement> => {
+    return new Promise(
+      (
+        resolve,
+        reject
+      ) => {
+        const objectUrl =
+          URL.createObjectURL(
+            file
+          );
 
-      image.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve(image);
-      };
+        const image =
+          new Image();
 
-      image.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(
-          new Error(
-            "Không thể đọc ảnh. Hãy dùng JPG, JPEG, PNG hoặc WebP."
-          )
-        );
-      };
+        image.onload = () => {
+          URL.revokeObjectURL(
+            objectUrl
+          );
 
-      image.src = objectUrl;
-    });
+          resolve(image);
+        };
+
+        image.onerror = () => {
+          URL.revokeObjectURL(
+            objectUrl
+          );
+
+          reject(
+            new Error(
+              "Không thể đọc ảnh. Hãy dùng JPG, JPEG, PNG hoặc WebP."
+            )
+          );
+        };
+
+        image.src =
+          objectUrl;
+      }
+    );
   };
 
   const capturePhoto = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current)
+      return;
 
     try {
-      const video = videoRef.current;
-      const width = video.videoWidth || 1280;
-      const height = video.videoHeight || 720;
+      const video =
+        videoRef.current;
 
-      const dataUrl = createCompressedJpeg(
-        video,
-        width,
-        height
+      const width =
+        video.videoWidth ||
+        1280;
+
+      const height =
+        video.videoHeight ||
+        720;
+
+      const dataUrl =
+        createCompressedJpeg(
+          video,
+          width,
+          height
+        );
+
+      setUploadedImagePreview(
+        dataUrl
       );
 
-      setUploadedImagePreview(dataUrl);
       setAnalysisError(null);
+
       stopCameraStream();
     } catch (error: any) {
-      console.error("Capture/compression error:", error);
+      console.error(
+        "Capture/compression error:",
+        error
+      );
 
       setAnalysisError(
         error?.message ||
@@ -778,122 +1137,208 @@ export default function SmartNotesApp() {
     }
   };
 
-  const handleFileUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
+  const handleFileUpload =
+    async (
+      e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+      const file =
+        e.target.files?.[0];
 
-    // Cho phép chọn lại đúng cùng một file sau đó.
-    e.target.value = "";
+      e.target.value = "";
 
-    if (!file) return;
+      if (!file) return;
 
-    setAnalysisError(null);
-    setAnalysisSuccessToast(null);
-
-    if (!file.type.startsWith("image/")) {
-      setAnalysisError("Vui lòng chọn tệp hình ảnh.");
-      return;
-    }
-
-    if (file.size > MAX_SOURCE_FILE_SIZE) {
-      setAnalysisError(
-        "Ảnh gốc lớn hơn 20 MB. Vui lòng chọn ảnh nhỏ hơn."
-      );
-      return;
-    }
-
-    try {
-      const image = await loadImageFromFile(file);
-
-      const compressedDataUrl = createCompressedJpeg(
-        image,
-        image.naturalWidth,
-        image.naturalHeight
-      );
-
-      setUploadedImagePreview(compressedDataUrl);
-
-      const estimatedKb = Math.round(
-        (compressedDataUrl.length * 0.75) / 1024
-      );
-
+      setAnalysisError(null);
       setAnalysisSuccessToast(
-        `Ảnh đã được tối ưu còn khoảng ${estimatedKb.toLocaleString(
-          "vi-VN"
-        )} KB, sẵn sàng gửi Gemini.`
+        null
       );
-    } catch (error: any) {
-      console.error("Image compression error:", error);
 
-      setUploadedImagePreview(null);
+      if (
+        !file.type.startsWith(
+          "image/"
+        )
+      ) {
+        setAnalysisError(
+          "Vui lòng chọn tệp hình ảnh."
+        );
+        return;
+      }
 
-      setAnalysisError(
-        error?.message ||
-          "Không thể xử lý ảnh. Vui lòng chọn ảnh JPG/PNG khác."
-      );
-    }
-  };
+      if (
+        file.size >
+        MAX_SOURCE_FILE_SIZE
+      ) {
+        setAnalysisError(
+          "Ảnh gốc lớn hơn 20 MB. Vui lòng chọn ảnh nhỏ hơn."
+        );
+        return;
+      }
+
+      try {
+        const image =
+          await loadImageFromFile(
+            file
+          );
+
+        const compressedDataUrl =
+          createCompressedJpeg(
+            image,
+            image.naturalWidth,
+            image.naturalHeight
+          );
+
+        setUploadedImagePreview(
+          compressedDataUrl
+        );
+
+        const estimatedKb =
+          Math.round(
+            (compressedDataUrl.length *
+              0.75) /
+              1024
+          );
+
+        setAnalysisSuccessToast(
+          `Ảnh đã được tối ưu còn khoảng ${estimatedKb.toLocaleString(
+            "vi-VN"
+          )} KB, sẵn sàng gửi Gemini.`
+        );
+      } catch (error: any) {
+        console.error(
+          "Image compression error:",
+          error
+        );
+
+        setUploadedImagePreview(
+          null
+        );
+
+        setAnalysisError(
+          error?.message ||
+            "Không thể xử lý ảnh. Vui lòng chọn ảnh JPG/PNG khác."
+        );
+      }
+    };
 
   // =========================================================
   // CREDITS / REWARDS
   // =========================================================
-  const handleAddCredits = (amount: number, reason: string) => {
-    setCredits((prev) => prev + amount);
+  const handleAddCredits = (
+    amount: number,
+    reason: string
+  ) => {
+    setCredits(
+      (prev) =>
+        prev + amount
+    );
 
-    const tx: CreditTransaction = {
-      id: `tx-${Date.now()}`,
-      type: "earn",
-      amount,
-      description: reason,
-      timestamp: `${new Date().toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })} ${new Date().toLocaleDateString("vi-VN")}`,
-      category: "arena",
-    };
+    const tx: CreditTransaction =
+      {
+        id: `tx-${Date.now()}`,
+        type: "earn",
+        amount,
+        description: reason,
+        timestamp: `${new Date().toLocaleTimeString(
+          "vi-VN",
+          {
+            hour: "2-digit",
+            minute:
+              "2-digit",
+          }
+        )} ${new Date().toLocaleDateString(
+          "vi-VN"
+        )}`,
+        category: "arena",
+      };
 
-    setCreditTransactions((prev) => [tx, ...prev]);
+    setCreditTransactions(
+      (prev) => [
+        tx,
+        ...prev,
+      ]
+    );
   };
 
-  const handleRedeemReward = (item: RewardItem): boolean => {
-    if (credits < item.cost) return false;
+  const handleRedeemReward = (
+    item: RewardItem
+  ): boolean => {
+    if (
+      credits < item.cost
+    )
+      return false;
 
-    setCredits((prev) => prev - item.cost);
+    setCredits(
+      (prev) =>
+        prev - item.cost
+    );
 
-    const nowStr = `${new Date().toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })} ${new Date().toLocaleDateString("vi-VN")}`;
+    const nowStr = `${new Date().toLocaleTimeString(
+      "vi-VN",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    )} ${new Date().toLocaleDateString(
+      "vi-VN"
+    )}`;
 
-    const code = `SN-${item.category
-      .toUpperCase()
-      .slice(0, 3)}-${Math.random()
-      .toString(36)
-      .substring(2, 7)
-      .toUpperCase()}`;
+    const code =
+      `SN-${item.category
+        .toUpperCase()
+        .slice(
+          0,
+          3
+        )}-${Math.random()
+        .toString(36)
+        .substring(
+          2,
+          7
+        )
+        .toUpperCase()}`;
 
-    const gift: RedeemedGift = {
-      id: `gift-${Date.now()}`,
-      rewardId: item.id,
-      rewardName: item.name,
-      categoryName: item.tag || "Quà tặng",
-      cost: item.cost,
-      code,
-      redeemedAt: nowStr,
-    };
+    const gift: RedeemedGift =
+      {
+        id: `gift-${Date.now()}`,
+        rewardId:
+          item.id,
+        rewardName:
+          item.name,
+        categoryName:
+          item.tag ||
+          "Quà tặng",
+        cost: item.cost,
+        code,
+        redeemedAt:
+          nowStr,
+      };
 
-    const tx: CreditTransaction = {
-      id: `tx-${Date.now()}-reward`,
-      type: "spend",
-      amount: item.cost,
-      description: `Đổi quà: ${item.name} (Mã: ${code})`,
-      timestamp: nowStr,
-      category: "reward",
-    };
+    const tx: CreditTransaction =
+      {
+        id: `tx-${Date.now()}-reward`,
+        type: "spend",
+        amount:
+          item.cost,
+        description:
+          `Đổi quà: ${item.name} (Mã: ${code})`,
+        timestamp:
+          nowStr,
+        category:
+          "reward",
+      };
 
-    setRedeemedGifts((prev) => [gift, ...prev]);
-    setCreditTransactions((prev) => [tx, ...prev]);
+    setRedeemedGifts(
+      (prev) => [
+        gift,
+        ...prev,
+      ]
+    );
+
+    setCreditTransactions(
+      (prev) => [
+        tx,
+        ...prev,
+      ]
+    );
 
     return true;
   };
@@ -901,248 +1346,460 @@ export default function SmartNotesApp() {
   // =========================================================
   // GEMINI ANALYSIS
   // =========================================================
-  const handleStartAnalysis = async () => {
-    if (!uploadedImagePreview && !typedText.trim()) {
-      setAnalysisError(
-        "Vui lòng tải ảnh/chụp ảnh trang vở hoặc nhập nội dung trước khi phân tích."
+  const handleStartAnalysis =
+    async () => {
+      if (
+        !uploadedImagePreview &&
+        !typedText.trim()
+      ) {
+        setAnalysisError(
+          "Vui lòng tải ảnh/chụp ảnh trang vở hoặc nhập nội dung trước khi phân tích."
+        );
+        return;
+      }
+
+      if (
+        uploadedImagePreview &&
+        uploadedImagePreview.length >
+          MAX_IMAGE_DATA_URL_LENGTH
+      ) {
+        setAnalysisError(
+          "Ảnh vẫn quá lớn để gửi lên máy chủ. Hãy chọn lại ảnh để SmartNotes tự nén."
+        );
+        return;
+      }
+
+      if (credits < 2) {
+        setInsufficientCreditsModal(
+          true
+        );
+        return;
+      }
+
+      const firebaseUser =
+        auth.currentUser;
+
+      if (
+        !firebaseUser ||
+        !firebaseUser.emailVerified
+      ) {
+        setAnalysisError(
+          "Phiên đăng nhập Firebase không hợp lệ. Vui lòng đăng nhập lại."
+        );
+        return;
+      }
+
+      setIsAnalyzing(true);
+      setAnalysisError(null);
+      setAnalysisSuccessToast(
+        null
       );
-      return;
-    }
-
-    if (
-      uploadedImagePreview &&
-      uploadedImagePreview.length > MAX_IMAGE_DATA_URL_LENGTH
-    ) {
-      setAnalysisError(
-        "Ảnh vẫn quá lớn để gửi lên máy chủ. Hãy chọn lại ảnh để SmartNotes tự nén."
-      );
-      return;
-    }
-
-    if (credits < 2) {
-      setInsufficientCreditsModal(true);
-      return;
-    }
-
-    const firebaseUser = auth.currentUser;
-
-    if (!firebaseUser || !firebaseUser.emailVerified) {
-      setAnalysisError(
-        "Phiên đăng nhập Firebase không hợp lệ. Vui lòng đăng nhập lại."
-      );
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setAnalysisError(null);
-    setAnalysisSuccessToast(null);
-
-    try {
-      const idToken = await firebaseUser.getIdToken();
-
-      const response = await fetch("/api/analyze-notes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          text: typedText.trim() || undefined,
-          subject: selectedLearningContext,
-          imageBase64: uploadedImagePreview || undefined,
-        }),
-      });
-
-      let resData: any = null;
 
       try {
-        resData = await response.json();
-      } catch {
-        if (response.status === 413) {
+        const idToken =
+          await firebaseUser.getIdToken();
+
+        const response =
+          await fetch(
+            "/api/analyze-notes",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+                Authorization:
+                  `Bearer ${idToken}`,
+              },
+              body: JSON.stringify(
+                {
+                  text:
+                    typedText.trim() ||
+                    undefined,
+                  subject:
+                    selectedLearningContext,
+                  imageBase64:
+                    uploadedImagePreview ||
+                    undefined,
+                }
+              ),
+            }
+          );
+
+        let resData: any =
+          null;
+
+        try {
+          resData =
+            await response.json();
+        } catch {
+          if (
+            response.status ===
+            413
+          ) {
+            throw new Error(
+              "Ảnh gửi lên vẫn quá lớn (HTTP 413). Hãy chọn lại ảnh để SmartNotes tự nén trước khi phân tích."
+            );
+          }
+
           throw new Error(
-            "Ảnh gửi lên vẫn quá lớn (HTTP 413). Hãy chọn lại ảnh để SmartNotes tự nén trước khi phân tích."
+            `Server trả về dữ liệu không hợp lệ (HTTP ${response.status}).`
           );
         }
 
-        throw new Error(
-          `Server trả về dữ liệu không hợp lệ (HTTP ${response.status}).`
+        if (
+          !response.ok ||
+          !resData?.success ||
+          !resData?.data
+        ) {
+          throw new Error(
+            resData?.error ||
+              resData?.message ||
+              `Không thể phân tích bài ghi (HTTP ${response.status}).`
+          );
+        }
+
+        const analyzed: AnalysisResult =
+          {
+            ...resData.data,
+            rawPhotoPreview:
+              uploadedImagePreview ||
+              undefined,
+            isRealGeminiAnalysis:
+              true,
+            mindmap:
+              Array.isArray(
+                resData.data
+                  .mindmap
+              )
+                ? resData.data
+                    .mindmap
+                : [],
+            academicSources:
+              Array.isArray(
+                resData.data
+                  .academicSources
+              )
+                ? resData.data
+                    .academicSources
+                : [],
+            flashcards:
+              Array.isArray(
+                resData.data
+                  .flashcards
+              )
+                ? resData.data
+                    .flashcards
+                : [],
+          };
+
+        setAnalysisResult(
+          analyzed
+        );
+
+        const record: SavedNoteRecord =
+          {
+            id: `note-${Date.now()}`,
+            title:
+              analyzed.title ||
+              "Bài ghi số hóa",
+            subject:
+              analyzed.subject ||
+              selectedSubject,
+            grade:
+              analyzed.grade ||
+              userProfile.grade,
+            createdAt:
+              formatToDdMmYy(
+                new Date()
+              ),
+            summary:
+              analyzed.summary ||
+              "",
+            fullData:
+              analyzed,
+          };
+
+        setSavedNotes(
+          (prev) => [
+            record,
+            ...prev,
+          ]
+        );
+
+        setCredits(
+          (prev) =>
+            Math.max(
+              0,
+              prev - 2
+            )
+        );
+
+        const tx: CreditTransaction =
+          {
+            id: `tx-${Date.now()}-scan`,
+            type:
+              "spend",
+            amount: 2,
+            description:
+              `Quét & phân tích vở (${selectedSubject} - ${selectedGrade})`,
+            timestamp: `${new Date().toLocaleTimeString(
+              "vi-VN",
+              {
+                hour:
+                  "2-digit",
+                minute:
+                  "2-digit",
+              }
+            )} ${formatToDdMmYy(
+              new Date()
+            )}`,
+            category:
+              "scan",
+          };
+
+        setCreditTransactions(
+          (prev) => [
+            tx,
+            ...prev,
+          ]
+        );
+
+        setAnalysisSuccessToast(
+          `Phân tích thành công bằng ${
+            resData.modelUsed ||
+            "Gemini AI"
+          }.`
+        );
+
+        setTimeout(() => {
+          resultsSectionRef.current?.scrollIntoView(
+            {
+              behavior:
+                "smooth",
+              block:
+                "start",
+            }
+          );
+        }, 120);
+      } catch (error: any) {
+        console.error(
+          "Gemini analysis failed:",
+          error
+        );
+
+        setAnalysisError(
+          error?.message ||
+            "Không thể phân tích bằng Gemini AI. Vui lòng thử lại."
+        );
+      } finally {
+        setIsAnalyzing(
+          false
         );
       }
+    };
 
-      if (!response.ok || !resData?.success || !resData?.data) {
-        throw new Error(
-          resData?.error ||
-            resData?.message ||
-            `Không thể phân tích bài ghi (HTTP ${response.status}).`
+  const handleLoadSamplePreset =
+    () => {
+      if (
+        !matchingPresetKey
+      ) {
+        setAnalysisError(
+          `Hiện chưa có bài mẫu cho ${selectedSubject} - ${selectedGrade}. ` +
+            "Bạn vẫn có thể tải ảnh, chụp ảnh hoặc nhập nội dung để Gemini phân tích bình thường."
         );
+
+        setAnalysisResult(
+          null
+        );
+
+        return;
       }
 
-      const analyzed: AnalysisResult = {
-        ...resData.data,
-        rawPhotoPreview: uploadedImagePreview || undefined,
-        isRealGeminiAnalysis: true,
-        mindmap: Array.isArray(resData.data.mindmap)
-          ? resData.data.mindmap
-          : [],
-        academicSources: Array.isArray(resData.data.academicSources)
-          ? resData.data.academicSources
-          : [],
-        flashcards: Array.isArray(resData.data.flashcards)
-          ? resData.data.flashcards
-          : [],
-      };
+      const preset =
+        curriculumPresets[
+          matchingPresetKey
+        ];
 
-      setAnalysisResult(analyzed);
+      setAnalysisResult(
+        preset
+      );
 
-      const record: SavedNoteRecord = {
-        id: `note-${Date.now()}`,
-        title: analyzed.title || "Bài ghi số hóa",
-        subject:
-          analyzed.subject || selectedSubject,
-        grade: analyzed.grade || userProfile.grade,
-        createdAt: formatToDdMmYy(new Date()),
-        summary: analyzed.summary || "",
-        fullData: analyzed,
-      };
-
-      setSavedNotes((prev) => [record, ...prev]);
-
-      // Chỉ trừ credit sau khi Gemini trả kết quả thành công.
-      setCredits((prev) => Math.max(0, prev - 2));
-
-      const tx: CreditTransaction = {
-        id: `tx-${Date.now()}-scan`,
-        type: "spend",
-        amount: 2,
-        description: `Quét & phân tích vở (${selectedSubject} - ${selectedGrade})`,
-        timestamp: `${new Date().toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })} ${formatToDdMmYy(new Date())}`,
-        category: "scan",
-      };
-
-      setCreditTransactions((prev) => [tx, ...prev]);
+      setAnalysisError(
+        null
+      );
 
       setAnalysisSuccessToast(
-        `Phân tích thành công bằng ${resData.modelUsed || "Gemini AI"}.`
+        `Đã tải bài mẫu ${selectedSubject} - ${selectedGrade}.`
       );
-
-      setTimeout(() => {
-        resultsSectionRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 120);
-    } catch (error: any) {
-      console.error("Gemini analysis failed:", error);
-      setAnalysisError(
-        error?.message ||
-          "Không thể phân tích bằng Gemini AI. Vui lòng thử lại."
-      );
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleLoadSamplePreset = () => {
-    if (!matchingPresetKey) {
-      setAnalysisError(
-        `Hiện chưa có bài mẫu cho ${selectedSubject} - ${selectedGrade}. ` +
-          "Bạn vẫn có thể tải ảnh, chụp ảnh hoặc nhập nội dung để Gemini phân tích bình thường."
-      );
-
-      setAnalysisResult(null);
-      return;
-    }
-
-    const preset = curriculumPresets[matchingPresetKey];
-
-    setAnalysisResult(preset);
-    setAnalysisError(null);
-    setAnalysisSuccessToast(
-      `Đã tải bài mẫu ${selectedSubject} - ${selectedGrade}.`
-    );
-  };
+    };
 
   // =========================================================
   // EXPORT NOTE
   // =========================================================
-  const handleDownloadNotepad = () => {
-    if (!analysisResult) return;
+  const handleDownloadNotepad =
+    () => {
+      if (
+        !analysisResult
+      )
+        return;
 
-    let text = "";
-    text += "SMARTNOTES AI - BẢN SỐ HÓA VỞ GHI\n";
-    text += "=====================================\n\n";
-    text += `BÀI: ${analysisResult.title}\n`;
-    text += `MÔN: ${analysisResult.subject || selectedSubject}\n`;
-    text += `KHỐI: ${analysisResult.grade || selectedGrade}\n\n`;
-    text += `TÓM TẮT:\n${analysisResult.summary}\n\n`;
+      let text = "";
 
-    if (analysisResult.extractedText) {
-      text += `NỘI DUNG NHẬN DIỆN:\n${analysisResult.extractedText}\n\n`;
-    }
+      text +=
+        "SMARTNOTES AI - BẢN SỐ HÓA VỞ GHI\n";
 
-    if (analysisResult.keyPoints?.length) {
-      text += "Ý CHÍNH:\n";
-      analysisResult.keyPoints.forEach((item, index) => {
-        text += `${index + 1}. ${item}\n`;
-      });
-      text += "\n";
-    }
+      text +=
+        "=====================================\n\n";
 
-    if (analysisResult.flashcards?.length) {
-      text += "FLASHCARDS:\n";
-      analysisResult.flashcards.forEach((item, index) => {
-        text += `Q${index + 1}: ${item.q}\n`;
-        text += `A${index + 1}: ${item.a}\n\n`;
-      });
-    }
+      text +=
+        `BÀI: ${analysisResult.title}\n`;
 
-    const blob = new Blob([text], {
-      type: "text/plain;charset=utf-8",
-    });
+      text +=
+        `MÔN: ${
+          analysisResult.subject ||
+          selectedSubject
+        }\n`;
 
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
+      text +=
+        `KHỐI: ${
+          analysisResult.grade ||
+          selectedGrade
+        }\n\n`;
 
-    anchor.href = url;
-    anchor.download = `SmartNotes_${analysisResult.title.replace(
-      /[^a-zA-Z0-9]/g,
-      "_"
-    )}.txt`;
+      text +=
+        `TÓM TẮT:\n${analysisResult.summary}\n\n`;
 
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
+      if (
+        analysisResult.extractedText
+      ) {
+        text +=
+          `NỘI DUNG NHẬN DIỆN:\n${analysisResult.extractedText}\n\n`;
+      }
+
+      if (
+        analysisResult.keyPoints
+          ?.length
+      ) {
+        text +=
+          "Ý CHÍNH:\n";
+
+        analysisResult.keyPoints.forEach(
+          (
+            item,
+            index
+          ) => {
+            text +=
+              `${index + 1}. ${item}\n`;
+          }
+        );
+
+        text += "\n";
+      }
+
+      if (
+        analysisResult.flashcards
+          ?.length
+      ) {
+        text +=
+          "FLASHCARDS:\n";
+
+        analysisResult.flashcards.forEach(
+          (
+            item,
+            index
+          ) => {
+            text +=
+              `Q${index + 1}: ${item.q}\n`;
+
+            text +=
+              `A${index + 1}: ${item.a}\n\n`;
+          }
+        );
+      }
+
+      const blob =
+        new Blob(
+          [text],
+          {
+            type:
+              "text/plain;charset=utf-8",
+          }
+        );
+
+      const url =
+        URL.createObjectURL(
+          blob
+        );
+
+      const anchor =
+        document.createElement(
+          "a"
+        );
+
+      anchor.href =
+        url;
+
+      anchor.download =
+        `SmartNotes_${analysisResult.title.replace(
+          /[^a-zA-Z0-9]/g,
+          "_"
+        )}.txt`;
+
+      anchor.click();
+
+      URL.revokeObjectURL(
+        url
+      );
+    };
 
   // =========================================================
   // THEME
   // =========================================================
-  const handleThemeChange = (mode: "light" | "dark" | "studio") => {
+  const handleThemeChange = (
+    mode:
+      | "light"
+      | "dark"
+      | "studio"
+  ) => {
     setThemeMode(mode);
-    localStorage.setItem("sn_theme_mode", mode);
+
+    localStorage.setItem(
+      "sn_theme_mode",
+      mode
+    );
   };
 
-  const handleAccentColorChange = (color: string) => {
-    setAccentColor(color);
-    localStorage.setItem("sn_accent_color", color);
-  };
+  const handleAccentColorChange =
+    (color: string) => {
+      setAccentColor(
+        color
+      );
 
-  const isDark = themeMode === "dark";
-  const isStudio = themeMode === "studio";
+      localStorage.setItem(
+        "sn_accent_color",
+        color
+      );
+    };
 
-  const themeClasses = isStudio
-    ? "bg-stone-100 text-stone-900"
-    : isDark
-    ? "bg-zinc-950 text-zinc-100 dark"
-    : "bg-slate-50 text-zinc-900";
+  const isDark =
+    themeMode === "dark";
 
-  const cardClasses = isStudio
-    ? "bg-white border-stone-300 shadow-sm"
-    : isDark
-    ? "bg-zinc-900 border-zinc-800"
-    : "bg-white border-zinc-200 shadow-sm";
+  const isStudio =
+    themeMode === "studio";
+
+  const themeClasses =
+    isStudio
+      ? "bg-stone-100 text-stone-900"
+      : isDark
+      ? "bg-zinc-950 text-zinc-100 dark"
+      : "bg-slate-50 text-zinc-900";
+
+  const cardClasses =
+    isStudio
+      ? "bg-white border-stone-300 shadow-sm"
+      : isDark
+      ? "bg-zinc-900 border-zinc-800"
+      : "bg-white border-zinc-200 shadow-sm";
 
   // =========================================================
   // AUTH LOADING
@@ -1155,7 +1812,9 @@ export default function SmartNotesApp() {
             <BookOpen className="w-7 h-7" />
           </div>
 
-          <h1 className="text-xl font-black">SmartNotes AI</h1>
+          <h1 className="text-xl font-black">
+            SmartNotes AI
+          </h1>
 
           <p className="text-sm text-zinc-400">
             Đang xác minh tài khoản Firebase...
@@ -1187,8 +1846,8 @@ export default function SmartNotesApp() {
             </h1>
 
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Tài khoản được xác thực bằng Firebase Authentication. Email phải
-              được xác minh trước khi sử dụng hệ thống.
+              Tài khoản được xác thực bằng Firebase Authentication.
+              Email phải được xác minh trước khi sử dụng hệ thống.
             </p>
           </div>
 
@@ -1196,11 +1855,14 @@ export default function SmartNotesApp() {
             <button
               type="button"
               onClick={() => {
-                setAuthMode("login");
+                setAuthMode(
+                  "login"
+                );
                 resetAuthMessages();
               }}
               className={`flex-1 py-2.5 rounded-xl transition ${
-                authMode === "login"
+                authMode ===
+                "login"
                   ? "bg-indigo-600 text-white"
                   : "text-zinc-400"
               }`}
@@ -1211,11 +1873,14 @@ export default function SmartNotesApp() {
             <button
               type="button"
               onClick={() => {
-                setAuthMode("register");
+                setAuthMode(
+                  "register"
+                );
                 resetAuthMessages();
               }}
               className={`flex-1 py-2.5 rounded-xl transition ${
-                authMode === "register"
+                authMode ===
+                "register"
                   ? "bg-indigo-600 text-white"
                   : "text-zinc-400"
               }`}
@@ -1227,34 +1892,51 @@ export default function SmartNotesApp() {
           {authNotice && (
             <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-xs text-emerald-100 flex gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{authNotice}</span>
+              <span>
+                {authNotice}
+              </span>
             </div>
           )}
 
           {loginError && (
             <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/50 text-xs text-rose-100 flex gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{loginError}</span>
+              <span>
+                {loginError}
+              </span>
             </div>
           )}
 
           {regError && (
             <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/50 text-xs text-rose-100 flex gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{regError}</span>
+              <span>
+                {regError}
+              </span>
             </div>
           )}
 
-          {authMode === "login" ? (
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
+          {authMode ===
+          "login" ? (
+            <form
+              onSubmit={
+                handleLoginSubmit
+              }
+              className="space-y-4"
+            >
               <div>
                 <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
                   Email
                 </label>
+
                 <input
                   type="email"
                   value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
+                  onChange={(e) =>
+                    setLoginEmail(
+                      e.target.value
+                    )
+                  }
                   placeholder="email@example.com"
                   required
                   className="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-indigo-400"
@@ -1265,10 +1947,17 @@ export default function SmartNotesApp() {
                 <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
                   Mật khẩu
                 </label>
+
                 <input
                   type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
+                  value={
+                    loginPassword
+                  }
+                  onChange={(e) =>
+                    setLoginPassword(
+                      e.target.value
+                    )
+                  }
                   placeholder="Nhập mật khẩu"
                   required
                   className="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-indigo-400"
@@ -1285,17 +1974,26 @@ export default function SmartNotesApp() {
             </form>
           ) : (
             <form
-              onSubmit={handleRegisterSubmit}
+              onSubmit={
+                handleRegisterSubmit
+              }
               className="space-y-3.5 max-h-[62vh] overflow-y-auto pr-1"
             >
               <div>
                 <label className="block text-xs font-semibold text-zinc-300 mb-1">
                   Họ và tên
                 </label>
+
                 <input
                   type="text"
-                  value={regFullName}
-                  onChange={(e) => setRegFullName(e.target.value)}
+                  value={
+                    regFullName
+                  }
+                  onChange={(e) =>
+                    setRegFullName(
+                      e.target.value
+                    )
+                  }
                   placeholder="Nguyễn Văn A"
                   required
                   className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:border-indigo-400"
@@ -1307,10 +2005,17 @@ export default function SmartNotesApp() {
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
                     Email
                   </label>
+
                   <input
                     type="email"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
+                    value={
+                      regEmail
+                    }
+                    onChange={(e) =>
+                      setRegEmail(
+                        e.target.value
+                      )
+                    }
                     placeholder="email@example.com"
                     required
                     className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:border-indigo-400"
@@ -1321,10 +2026,17 @@ export default function SmartNotesApp() {
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
                     Tên đăng nhập
                   </label>
+
                   <input
                     type="text"
-                    value={regUsername}
-                    onChange={(e) => setRegUsername(e.target.value)}
+                    value={
+                      regUsername
+                    }
+                    onChange={(e) =>
+                      setRegUsername(
+                        e.target.value
+                      )
+                    }
                     placeholder="nguyenvana"
                     required
                     className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:border-indigo-400"
@@ -1337,18 +2049,35 @@ export default function SmartNotesApp() {
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
                     Khối lớp
                   </label>
+
                   <select
-                    value={regGrade}
+                    value={
+                      regGrade
+                    }
                     onChange={(e) =>
-                      setRegGrade(e.target.value as GradeLevel)
+                      setRegGrade(
+                        e.target
+                          .value as GradeLevel
+                      )
                     }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-800 border border-white/20 text-white text-sm"
                   >
-                    {GRADE_OPTIONS.map((grade) => (
-                      <option key={grade} value={grade}>
-                        {grade}
-                      </option>
-                    ))}
+                    {GRADE_OPTIONS.map(
+                      (grade) => (
+                        <option
+                          key={
+                            grade
+                          }
+                          value={
+                            grade
+                          }
+                        >
+                          {
+                            grade
+                          }
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
 
@@ -1356,10 +2085,17 @@ export default function SmartNotesApp() {
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
                     Trường học
                   </label>
+
                   <input
                     type="text"
-                    value={regSchool}
-                    onChange={(e) => setRegSchool(e.target.value)}
+                    value={
+                      regSchool
+                    }
+                    onChange={(e) =>
+                      setRegSchool(
+                        e.target.value
+                      )
+                    }
                     placeholder="Tên trường"
                     className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm"
                   />
@@ -1371,14 +2107,29 @@ export default function SmartNotesApp() {
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
                     Giới tính
                   </label>
+
                   <select
-                    value={regGender}
-                    onChange={(e) => setRegGender(e.target.value)}
+                    value={
+                      regGender
+                    }
+                    onChange={(e) =>
+                      setRegGender(
+                        e.target.value
+                      )
+                    }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-800 border border-white/20 text-white text-sm"
                   >
-                    <option value="Nam">Nam</option>
-                    <option value="Nữ">Nữ</option>
-                    <option value="Khác">Khác</option>
+                    <option value="Nam">
+                      Nam
+                    </option>
+
+                    <option value="Nữ">
+                      Nữ
+                    </option>
+
+                    <option value="Khác">
+                      Khác
+                    </option>
                   </select>
                 </div>
 
@@ -1386,10 +2137,15 @@ export default function SmartNotesApp() {
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
                     Ngày sinh
                   </label>
+
                   <input
                     type="text"
                     value={regDob}
-                    onChange={(e) => setRegDob(e.target.value)}
+                    onChange={(e) =>
+                      setRegDob(
+                        e.target.value
+                      )
+                    }
                     placeholder="dd/mm/yyyy"
                     className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm"
                   />
@@ -1401,10 +2157,17 @@ export default function SmartNotesApp() {
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
                     Mật khẩu
                   </label>
+
                   <input
                     type="password"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
+                    value={
+                      regPassword
+                    }
+                    onChange={(e) =>
+                      setRegPassword(
+                        e.target.value
+                      )
+                    }
                     placeholder="Tối thiểu 8 ký tự"
                     required
                     className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm"
@@ -1415,10 +2178,17 @@ export default function SmartNotesApp() {
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
                     Xác nhận mật khẩu
                   </label>
+
                   <input
                     type="password"
-                    value={regConfirmPassword}
-                    onChange={(e) => setRegConfirmPassword(e.target.value)}
+                    value={
+                      regConfirmPassword
+                    }
+                    onChange={(e) =>
+                      setRegConfirmPassword(
+                        e.target.value
+                      )
+                    }
                     placeholder="Nhập lại mật khẩu"
                     required
                     className="w-full px-3.5 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm"
@@ -1444,7 +2214,9 @@ export default function SmartNotesApp() {
   // MAIN APP
   // =========================================================
   return (
-    <div className={`min-h-screen transition-colors ${themeClasses}`}>
+    <div
+      className={`min-h-screen transition-colors ${themeClasses}`}
+    >
       <header
         className={`sticky top-0 z-40 backdrop-blur-md border-b px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 ${
           isDark
@@ -1456,18 +2228,28 @@ export default function SmartNotesApp() {
       >
         <button
           type="button"
-          onClick={() => setActiveTab("home")}
+          onClick={() =>
+            setActiveTab(
+              "home"
+            )
+          }
           className="flex items-center gap-3"
         >
           <div
             className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-md"
-            style={{ backgroundColor: accentColor }}
+            style={{
+              backgroundColor:
+                accentColor,
+            }}
           >
             <BookOpen className="w-5 h-5" />
           </div>
 
           <div className="text-left">
-            <h1 className="font-black text-lg">SmartNotes AI</h1>
+            <h1 className="font-black text-lg">
+              SmartNotes AI
+            </h1>
+
             <p className="text-[11px] text-zinc-500">
               Firebase Auth + Gemini AI
             </p>
@@ -1476,32 +2258,61 @@ export default function SmartNotesApp() {
 
         <nav className="hidden lg:flex items-center gap-1 p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-bold">
           {[
-            ["home", "Trang chủ"],
-            ["create", "Quét vở"],
-            ["archive", `Sổ tay (${savedNotes.length})`],
-            ["arena", "Đấu trường"],
-            ["rewards", "Đổi quà"],
-            ["game", "Mini Game"],
-          ].map(([tab, label]) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab as MainTab)}
-              className={`px-3.5 py-2 rounded-xl transition ${
-                activeTab === tab
-                  ? "bg-white dark:bg-zinc-800 shadow-sm text-indigo-600 dark:text-indigo-400"
-                  : "text-zinc-600 dark:text-zinc-400"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+            [
+              "home",
+              "Trang chủ",
+            ],
+            [
+              "create",
+              "Quét vở",
+            ],
+            [
+              "archive",
+              `Sổ tay (${savedNotes.length})`,
+            ],
+            [
+              "arena",
+              "Đấu trường",
+            ],
+            [
+              "rewards",
+              "Đổi quà",
+            ],
+            [
+              "game",
+              "Mini Game",
+            ],
+          ].map(
+            ([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() =>
+                  setActiveTab(
+                    tab as MainTab
+                  )
+                }
+                className={`px-3.5 py-2 rounded-xl transition ${
+                  activeTab ===
+                  tab
+                    ? "bg-white dark:bg-zinc-800 shadow-sm text-indigo-600 dark:text-indigo-400"
+                    : "text-zinc-600 dark:text-zinc-400"
+                }`}
+              >
+                {label}
+              </button>
+            )
+          )}
         </nav>
 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setActiveTab("rewards")}
+            onClick={() =>
+              setActiveTab(
+                "rewards"
+              )
+            }
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-bold"
           >
             <Coins className="w-4 h-4" />
@@ -1510,7 +2321,11 @@ export default function SmartNotesApp() {
 
           <button
             type="button"
-            onClick={() => setShowThemeModal(true)}
+            onClick={() =>
+              setShowThemeModal(
+                true
+              )
+            }
             className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800"
             title="Theme Studio"
           >
@@ -1519,16 +2334,27 @@ export default function SmartNotesApp() {
 
           <button
             type="button"
-            onClick={() => setShowProfileModal(true)}
+            onClick={() =>
+              setShowProfileModal(
+                true
+              )
+            }
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-bold"
           >
             <User className="w-4 h-4" />
-            <span className="hidden sm:inline">{userProfile.fullName}</span>
+
+            <span className="hidden sm:inline">
+              {
+                userProfile.fullName
+              }
+            </span>
           </button>
 
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
             className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40"
           >
             Thoát
@@ -1539,31 +2365,57 @@ export default function SmartNotesApp() {
       <div className="lg:hidden sticky top-[65px] z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto">
         <div className="flex gap-1 p-2 min-w-max text-xs font-bold">
           {[
-            ["home", "Trang chủ"],
-            ["create", "Quét vở"],
-            ["archive", "Sổ tay"],
-            ["arena", "Đấu trường"],
-            ["rewards", "Đổi quà"],
-            ["game", "Game"],
-          ].map(([tab, label]) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab as MainTab)}
-              className={`px-3 py-2 rounded-xl ${
-                activeTab === tab
-                  ? "bg-indigo-600 text-white"
-                  : "text-zinc-600 dark:text-zinc-300"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+            [
+              "home",
+              "Trang chủ",
+            ],
+            [
+              "create",
+              "Quét vở",
+            ],
+            [
+              "archive",
+              "Sổ tay",
+            ],
+            [
+              "arena",
+              "Đấu trường",
+            ],
+            [
+              "rewards",
+              "Đổi quà",
+            ],
+            [
+              "game",
+              "Game",
+            ],
+          ].map(
+            ([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() =>
+                  setActiveTab(
+                    tab as MainTab
+                  )
+                }
+                className={`px-3 py-2 rounded-xl ${
+                  activeTab ===
+                  tab
+                    ? "bg-indigo-600 text-white"
+                    : "text-zinc-600 dark:text-zinc-300"
+                }`}
+              >
+                {label}
+              </button>
+            )
+          )}
         </div>
       </div>
 
       <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
-        {activeTab === "home" && (
+        {activeTab ===
+          "home" && (
           <div className="space-y-6">
             <section
               className={`p-6 md:p-8 rounded-3xl border ${cardClasses} shadow-sm`}
@@ -1572,25 +2424,41 @@ export default function SmartNotesApp() {
                 <div className="space-y-3 max-w-2xl">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
                     <GraduationCap className="w-4 h-4" />
-                    {userProfile.grade}
-                    {userProfile.school ? ` • ${userProfile.school}` : ""}
+                    {
+                      userProfile.grade
+                    }
+                    {userProfile.school
+                      ? ` • ${userProfile.school}`
+                      : ""}
                   </div>
 
                   <h2 className="text-2xl md:text-3xl font-black">
-                    Chào {userProfile.fullName}! 📚
+                    Chào{" "}
+                    {
+                      userProfile.fullName
+                    }
+                    ! 📚
                   </h2>
 
                   <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">
-                    SmartNotes AI số hóa trang vở, đọc chữ viết, tóm tắt kiến
-                    thức, tạo mindmap, flashcard và hỗ trợ rà soát nội dung.
+                    SmartNotes AI số hóa trang vở, đọc chữ viết,
+                    tóm tắt kiến thức, tạo mindmap, flashcard và hỗ
+                    trợ rà soát nội dung.
                   </p>
 
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
-                      onClick={() => setActiveTab("create")}
+                      onClick={() =>
+                        setActiveTab(
+                          "create"
+                        )
+                      }
                       className="px-5 py-2.5 rounded-xl text-white font-bold text-sm flex items-center gap-2"
-                      style={{ backgroundColor: accentColor }}
+                      style={{
+                        backgroundColor:
+                          accentColor,
+                      }}
                     >
                       <Camera className="w-4 h-4" />
                       Quét trang vở
@@ -1598,7 +2466,11 @@ export default function SmartNotesApp() {
 
                     <button
                       type="button"
-                      onClick={() => setActiveTab("arena")}
+                      onClick={() =>
+                        setActiveTab(
+                          "arena"
+                        )
+                      }
                       className="px-5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 font-bold text-sm flex items-center gap-2"
                     >
                       <Trophy className="w-4 h-4 text-amber-500" />
@@ -1609,18 +2481,35 @@ export default function SmartNotesApp() {
 
                 <div className="w-full lg:w-72 p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/20 space-y-3">
                   <div className="flex justify-between text-xs">
-                    <span className="text-zinc-500">Tài khoản</span>
-                    <strong className="text-emerald-600">Đã xác minh</strong>
+                    <span className="text-zinc-500">
+                      Tài khoản
+                    </span>
+
+                    <strong className="text-emerald-600">
+                      Đã xác minh
+                    </strong>
                   </div>
 
                   <div className="flex justify-between text-xs">
-                    <span className="text-zinc-500">Credits</span>
-                    <strong>{credits}</strong>
+                    <span className="text-zinc-500">
+                      Credits
+                    </span>
+
+                    <strong>
+                      {credits}
+                    </strong>
                   </div>
 
                   <div className="flex justify-between text-xs">
-                    <span className="text-zinc-500">Bài đã lưu</span>
-                    <strong>{savedNotes.length}</strong>
+                    <span className="text-zinc-500">
+                      Bài đã lưu
+                    </span>
+
+                    <strong>
+                      {
+                        savedNotes.length
+                      }
+                    </strong>
                   </div>
                 </div>
               </div>
@@ -1629,11 +2518,19 @@ export default function SmartNotesApp() {
             <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
                 type="button"
-                onClick={() => setActiveTab("create")}
+                onClick={() =>
+                  setActiveTab(
+                    "create"
+                  )
+                }
                 className={`text-left p-5 rounded-3xl border ${cardClasses}`}
               >
                 <Sparkles className="w-6 h-6 text-indigo-500 mb-3" />
-                <h3 className="font-bold">AI số hóa vở ghi</h3>
+
+                <h3 className="font-bold">
+                  AI số hóa vở ghi
+                </h3>
+
                 <p className="text-xs text-zinc-500 mt-1">
                   Ảnh → OCR → tóm tắt → mindmap → flashcard.
                 </p>
@@ -1641,11 +2538,19 @@ export default function SmartNotesApp() {
 
               <button
                 type="button"
-                onClick={() => setActiveTab("archive")}
+                onClick={() =>
+                  setActiveTab(
+                    "archive"
+                  )
+                }
                 className={`text-left p-5 rounded-3xl border ${cardClasses}`}
               >
                 <FileText className="w-6 h-6 text-violet-500 mb-3" />
-                <h3 className="font-bold">Sổ tay số</h3>
+
+                <h3 className="font-bold">
+                  Sổ tay số
+                </h3>
+
                 <p className="text-xs text-zinc-500 mt-1">
                   Lưu trữ và mở lại các bài đã phân tích.
                 </p>
@@ -1653,11 +2558,19 @@ export default function SmartNotesApp() {
 
               <button
                 type="button"
-                onClick={() => setActiveTab("rewards")}
+                onClick={() =>
+                  setActiveTab(
+                    "rewards"
+                  )
+                }
                 className={`text-left p-5 rounded-3xl border ${cardClasses}`}
               >
                 <Gift className="w-6 h-6 text-amber-500 mb-3" />
-                <h3 className="font-bold">Điểm & đổi quà</h3>
+
+                <h3 className="font-bold">
+                  Điểm & đổi quà
+                </h3>
+
                 <p className="text-xs text-zinc-500 mt-1">
                   Theo dõi credit và lịch sử phần thưởng.
                 </p>
@@ -1666,7 +2579,8 @@ export default function SmartNotesApp() {
           </div>
         )}
 
-        {activeTab === "create" && (
+        {activeTab ===
+          "create" && (
           <div className="space-y-6">
             <section
               className={`p-6 md:p-8 rounded-3xl border ${cardClasses} space-y-6`}
@@ -1676,25 +2590,38 @@ export default function SmartNotesApp() {
                   <h2 className="text-xl font-black">
                     Quét & phân tích vở ghi
                   </h2>
+
                   <p className="text-xs text-zinc-500 mt-1">
                     Mỗi lần phân tích thành công sử dụng 2 credits.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 w-full lg:w-auto">
-                  {/* MÔN HỌC */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-300">
                       Môn học
                     </label>
 
                     <select
-                      value={selectedSubject}
+                      value={
+                        selectedSubject
+                      }
                       onChange={(e) => {
-                        setSelectedSubject(e.target.value);
-                        setAnalysisResult(null);
-                        setAnalysisError(null);
-                        setAnalysisSuccessToast(null);
+                        setSelectedSubject(
+                          e.target.value
+                        );
+
+                        setAnalysisResult(
+                          null
+                        );
+
+                        setAnalysisError(
+                          null
+                        );
+
+                        setAnalysisSuccessToast(
+                          null
+                        );
                       }}
                       className="
                         w-full sm:min-w-[210px]
@@ -1708,27 +2635,53 @@ export default function SmartNotesApp() {
                         focus:ring-2 focus:ring-indigo-500
                       "
                     >
-                      {SUBJECT_OPTIONS.map((subject) => (
-                        <option key={subject} value={subject}>
-                          {subject}
-                        </option>
-                      ))}
+                      {SUBJECT_OPTIONS.map(
+                        (
+                          subject
+                        ) => (
+                          <option
+                            key={
+                              subject
+                            }
+                            value={
+                              subject
+                            }
+                          >
+                            {
+                              subject
+                            }
+                          </option>
+                        )
+                      )}
                     </select>
                   </div>
 
-                  {/* KHỐI LỚP */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-300">
                       Khối lớp
                     </label>
 
                     <select
-                      value={selectedGrade}
+                      value={
+                        selectedGrade
+                      }
                       onChange={(e) => {
-                        setSelectedGrade(e.target.value as GradeLevel);
-                        setAnalysisResult(null);
-                        setAnalysisError(null);
-                        setAnalysisSuccessToast(null);
+                        setSelectedGrade(
+                          e.target
+                            .value as GradeLevel
+                        );
+
+                        setAnalysisResult(
+                          null
+                        );
+
+                        setAnalysisError(
+                          null
+                        );
+
+                        setAnalysisSuccessToast(
+                          null
+                        );
                       }}
                       className="
                         w-full sm:min-w-[135px]
@@ -1742,11 +2695,22 @@ export default function SmartNotesApp() {
                         focus:ring-2 focus:ring-indigo-500
                       "
                     >
-                      {GRADE_OPTIONS.map((grade) => (
-                        <option key={grade} value={grade}>
-                          {grade}
-                        </option>
-                      ))}
+                      {GRADE_OPTIONS.map(
+                        (grade) => (
+                          <option
+                            key={
+                              grade
+                            }
+                            value={
+                              grade
+                            }
+                          >
+                            {
+                              grade
+                            }
+                          </option>
+                        )
+                      )}
                     </select>
                   </div>
                 </div>
@@ -1755,9 +2719,14 @@ export default function SmartNotesApp() {
               <div className="grid grid-cols-3 p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-xs font-bold">
                 <button
                   type="button"
-                  onClick={() => setInputMode("upload")}
+                  onClick={() =>
+                    setInputMode(
+                      "upload"
+                    )
+                  }
                   className={`py-2.5 rounded-xl flex items-center justify-center gap-1.5 ${
-                    inputMode === "upload"
+                    inputMode ===
+                    "upload"
                       ? "bg-white dark:bg-zinc-900 text-indigo-600"
                       : "text-zinc-500"
                   }`}
@@ -1769,11 +2738,19 @@ export default function SmartNotesApp() {
                 <button
                   type="button"
                   onClick={() => {
-                    setInputMode("camera");
-                    setTimeout(() => startCamera(), 50);
+                    setInputMode(
+                      "camera"
+                    );
+
+                    setTimeout(
+                      () =>
+                        startCamera(),
+                      50
+                    );
                   }}
                   className={`py-2.5 rounded-xl flex items-center justify-center gap-1.5 ${
-                    inputMode === "camera"
+                    inputMode ===
+                    "camera"
                       ? "bg-white dark:bg-zinc-900 text-indigo-600"
                       : "text-zinc-500"
                   }`}
@@ -1784,9 +2761,14 @@ export default function SmartNotesApp() {
 
                 <button
                   type="button"
-                  onClick={() => setInputMode("typing")}
+                  onClick={() =>
+                    setInputMode(
+                      "typing"
+                    )
+                  }
                   className={`py-2.5 rounded-xl flex items-center justify-center gap-1.5 ${
-                    inputMode === "typing"
+                    inputMode ===
+                    "typing"
                       ? "bg-white dark:bg-zinc-900 text-indigo-600"
                       : "text-zinc-500"
                   }`}
@@ -1796,13 +2778,16 @@ export default function SmartNotesApp() {
                 </button>
               </div>
 
-              {inputMode === "upload" && (
+              {inputMode ===
+                "upload" && (
                 <div className="space-y-4">
                   <label className="block p-8 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-3xl text-center cursor-pointer">
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={handleFileUpload}
+                      onChange={
+                        handleFileUpload
+                      }
                       className="hidden"
                     />
 
@@ -1820,13 +2805,18 @@ export default function SmartNotesApp() {
                   {uploadedImagePreview && (
                     <div className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
                       <img
-                        src={uploadedImagePreview}
+                        src={
+                          uploadedImagePreview
+                        }
                         alt="Trang vở"
                         className="w-20 h-20 object-cover rounded-xl"
                       />
 
                       <div className="flex-1">
-                        <p className="text-sm font-bold">Ảnh đã sẵn sàng</p>
+                        <p className="text-sm font-bold">
+                          Ảnh đã sẵn sàng
+                        </p>
+
                         <p className="text-xs text-zinc-500">
                           Có thể bắt đầu phân tích.
                         </p>
@@ -1834,7 +2824,11 @@ export default function SmartNotesApp() {
 
                       <button
                         type="button"
-                        onClick={() => setUploadedImagePreview(null)}
+                        onClick={() =>
+                          setUploadedImagePreview(
+                            null
+                          )
+                        }
                         className="text-xs text-rose-600 font-semibold"
                       >
                         Xóa
@@ -1844,30 +2838,42 @@ export default function SmartNotesApp() {
                 </div>
               )}
 
-              {inputMode === "camera" && (
+              {inputMode ===
+                "camera" && (
                 <div className="space-y-4">
                   {cameraError && (
                     <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs">
-                      {cameraError}
+                      {
+                        cameraError
+                      }
                     </div>
                   )}
 
                   {isCameraActive ? (
                     <>
                       <video
-                        ref={videoRef}
+                        ref={
+                          videoRef
+                        }
                         autoPlay
                         playsInline
                         muted
                         className="w-full max-h-[420px] bg-black rounded-2xl object-contain"
                       />
 
-                      <canvas ref={canvasRef} className="hidden" />
+                      <canvas
+                        ref={
+                          canvasRef
+                        }
+                        className="hidden"
+                      />
 
                       <div className="flex gap-3 justify-center">
                         <button
                           type="button"
-                          onClick={capturePhoto}
+                          onClick={
+                            capturePhoto
+                          }
                           className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold flex items-center gap-2"
                         >
                           <Camera className="w-4 h-4" />
@@ -1876,7 +2882,9 @@ export default function SmartNotesApp() {
 
                         <button
                           type="button"
-                          onClick={stopCameraStream}
+                          onClick={
+                            stopCameraStream
+                          }
                           className="px-5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-bold"
                         >
                           Tắt camera
@@ -1886,7 +2894,9 @@ export default function SmartNotesApp() {
                   ) : (
                     <button
                       type="button"
-                      onClick={startCamera}
+                      onClick={
+                        startCamera
+                      }
                       className="w-full py-5 rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 font-bold"
                     >
                       Bật camera
@@ -1895,7 +2905,9 @@ export default function SmartNotesApp() {
 
                   {uploadedImagePreview && (
                     <img
-                      src={uploadedImagePreview}
+                      src={
+                        uploadedImagePreview
+                      }
                       alt="Ảnh vừa chụp"
                       className="w-full max-h-96 object-contain rounded-2xl border border-zinc-200 dark:border-zinc-700"
                     />
@@ -1903,11 +2915,18 @@ export default function SmartNotesApp() {
                 </div>
               )}
 
-              {inputMode === "typing" && (
+              {inputMode ===
+                "typing" && (
                 <textarea
                   rows={8}
-                  value={typedText}
-                  onChange={(e) => setTypedText(e.target.value)}
+                  value={
+                    typedText
+                  }
+                  onChange={(e) =>
+                    setTypedText(
+                      e.target.value
+                    )
+                  }
                   placeholder="Nhập hoặc dán nội dung bài học..."
                   className="w-full p-4 rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
@@ -1915,7 +2934,10 @@ export default function SmartNotesApp() {
 
               <div className="flex flex-wrap justify-between items-center gap-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 text-xs">
                 <span>
-                  Chi phí: <strong>2 credits / lần thành công</strong>
+                  Chi phí:{" "}
+                  <strong>
+                    2 credits / lần thành công
+                  </strong>
                 </span>
 
                 <span className="flex items-center gap-1 font-bold text-amber-600">
@@ -1927,11 +2949,17 @@ export default function SmartNotesApp() {
               {analysisError && (
                 <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex gap-3">
                   <AlertCircle className="w-5 h-5 shrink-0" />
+
                   <div>
                     <strong className="block mb-1">
                       Chưa thể hoàn tất phân tích
                     </strong>
-                    <span>{analysisError}</span>
+
+                    <span>
+                      {
+                        analysisError
+                      }
+                    </span>
                   </div>
                 </div>
               )}
@@ -1939,16 +2967,28 @@ export default function SmartNotesApp() {
               {analysisSuccessToast && (
                 <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs flex gap-2">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>{analysisSuccessToast}</span>
+
+                  <span>
+                    {
+                      analysisSuccessToast
+                    }
+                  </span>
                 </div>
               )}
 
               <button
                 type="button"
-                onClick={handleStartAnalysis}
-                disabled={isAnalyzing}
+                onClick={
+                  handleStartAnalysis
+                }
+                disabled={
+                  isAnalyzing
+                }
                 className="w-full py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
-                style={{ backgroundColor: accentColor }}
+                style={{
+                  backgroundColor:
+                    accentColor,
+                }}
               >
                 {isAnalyzing ? (
                   <>
@@ -1965,14 +3005,20 @@ export default function SmartNotesApp() {
 
               <button
                 type="button"
-                onClick={handleLoadSamplePreset}
+                onClick={
+                  handleLoadSamplePreset
+                }
                 className="w-full py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-semibold"
               >
                 Xem bài phân tích mẫu
               </button>
             </section>
 
-            <div ref={resultsSectionRef}>
+            <div
+              ref={
+                resultsSectionRef
+              }
+            >
               {analysisResult && (
                 <div className="space-y-6">
                   <section
@@ -1986,18 +3032,25 @@ export default function SmartNotesApp() {
                         </div>
 
                         <h3 className="text-2xl font-black mt-2">
-                          {analysisResult.title}
+                          {
+                            analysisResult.title
+                          }
                         </h3>
 
                         <p className="text-xs text-zinc-500 mt-1">
-                          {analysisResult.subject || selectedSubject} •{" "}
-                          {analysisResult.grade || selectedGrade}
+                          {analysisResult.subject ||
+                            selectedSubject}{" "}
+                          •{" "}
+                          {analysisResult.grade ||
+                            selectedGrade}
                         </p>
                       </div>
 
                       <button
                         type="button"
-                        onClick={handleDownloadNotepad}
+                        onClick={
+                          handleDownloadNotepad
+                        }
                         className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-bold flex items-center gap-2"
                       >
                         <Download className="w-4 h-4" />
@@ -2010,50 +3063,82 @@ export default function SmartNotesApp() {
                         <h4 className="text-sm font-bold mb-2">
                           Nội dung nhận diện
                         </h4>
+
                         <pre className="whitespace-pre-wrap text-xs leading-relaxed p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 font-sans">
-                          {analysisResult.extractedText}
+                          {
+                            analysisResult.extractedText
+                          }
                         </pre>
                       </div>
                     )}
 
                     <div>
-                      <h4 className="text-sm font-bold mb-2">Tóm tắt</h4>
+                      <h4 className="text-sm font-bold mb-2">
+                        Tóm tắt
+                      </h4>
+
                       <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-                        {analysisResult.summary}
+                        {
+                          analysisResult.summary
+                        }
                       </p>
                     </div>
 
                     {analysisResult.keyPoints?.length ? (
                       <div>
-                        <h4 className="text-sm font-bold mb-2">Ý chính</h4>
+                        <h4 className="text-sm font-bold mb-2">
+                          Ý chính
+                        </h4>
 
                         <div className="space-y-2">
-                          {analysisResult.keyPoints.map((point, index) => (
-                            <div
-                              key={index}
-                              className="flex gap-2 text-xs text-zinc-700 dark:text-zinc-300"
-                            >
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                              <span>{point}</span>
-                            </div>
-                          ))}
+                          {analysisResult.keyPoints.map(
+                            (
+                              point,
+                              index
+                            ) => (
+                              <div
+                                key={
+                                  index
+                                }
+                                className="flex gap-2 text-xs text-zinc-700 dark:text-zinc-300"
+                              >
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+
+                                <span>
+                                  {
+                                    point
+                                  }
+                                </span>
+                              </div>
+                            )
+                          )}
                         </div>
                       </div>
                     ) : null}
                   </section>
 
                   <MindmapView
-                    title={analysisResult.title}
-                    branches={analysisResult.mindmap || []}
+                    title={
+                      analysisResult.title
+                    }
+                    branches={
+                      analysisResult.mindmap ||
+                      []
+                    }
                   />
 
                   <AuditReportView
-                    auditChecks={analysisResult.auditChecks || []}
+                    auditChecks={
+                      analysisResult.auditChecks ||
+                      []
+                    }
                   />
 
                   {analysisResult.illustrationImages?.length ? (
                     <IllustrationGallery
-                      illustrations={analysisResult.illustrationImages}
+                      illustrations={
+                        analysisResult.illustrationImages
+                      }
                     />
                   ) : null}
 
@@ -2061,38 +3146,64 @@ export default function SmartNotesApp() {
                     <section
                       className={`p-6 rounded-3xl border ${cardClasses}`}
                     >
-                      <h3 className="font-bold mb-4">Flashcards</h3>
+                      <h3 className="font-bold mb-4">
+                        Flashcards
+                      </h3>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {analysisResult.flashcards.map((card, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() =>
-                              setRevealedFlashcard((prev) => ({
-                                ...prev,
-                                [index]: !prev[index],
-                              }))
-                            }
-                            className="text-left p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50"
-                          >
-                            <strong className="text-xs text-indigo-600">
-                              Q{index + 1}: {card.q}
-                            </strong>
+                        {analysisResult.flashcards.map(
+                          (
+                            card,
+                            index
+                          ) => (
+                            <button
+                              key={
+                                index
+                              }
+                              type="button"
+                              onClick={() =>
+                                setRevealedFlashcard(
+                                  (
+                                    prev
+                                  ) => ({
+                                    ...prev,
+                                    [index]:
+                                      !prev[
+                                        index
+                                      ],
+                                  })
+                                )
+                              }
+                              className="text-left p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50"
+                            >
+                              <strong className="text-xs text-indigo-600">
+                                Q
+                                {index +
+                                  1}
+                                :{" "}
+                                {
+                                  card.q
+                                }
+                              </strong>
 
-                            <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700 text-xs">
-                              {revealedFlashcard[index] ? (
-                                <span className="text-emerald-600 font-semibold">
-                                  {card.a}
-                                </span>
-                              ) : (
-                                <span className="text-zinc-400">
-                                  Nhấn để xem đáp án
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        ))}
+                              <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700 text-xs">
+                                {revealedFlashcard[
+                                  index
+                                ] ? (
+                                  <span className="text-emerald-600 font-semibold">
+                                    {
+                                      card.a
+                                    }
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-400">
+                                    Nhấn để xem đáp án
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          )
+                        )}
                       </div>
                     </section>
                   ) : null}
@@ -2102,41 +3213,111 @@ export default function SmartNotesApp() {
           </div>
         )}
 
-        {activeTab === "archive" && (
+        {activeTab ===
+          "archive" && (
           <NotebookArchive
-            savedNotes={savedNotes}
-            onSelectNote={(note) => {
-              setAnalysisResult(note);
-              setActiveTab("create");
+            savedNotes={
+              savedNotes
+            }
+            onSelectNote={(
+              note
+            ) => {
+              setAnalysisResult(
+                note
+              );
+
+              setActiveTab(
+                "create"
+              );
             }}
-            onDeleteNote={(id) => {
-              setSavedNotes((prev) => prev.filter((item) => item.id !== id));
+            onDeleteNote={(
+              id
+            ) => {
+              setSavedNotes(
+                (prev) =>
+                  prev.filter(
+                    (
+                      item
+                    ) =>
+                      item.id !==
+                      id
+                  )
+              );
             }}
           />
         )}
 
-        {activeTab === "arena" && (
+        {activeTab ===
+          "arena" && (
           <ReviewArena
-            initialGrade={userProfile.grade}
-            onAddCredits={handleAddCredits}
-            userCredits={credits}
-            onNavigateToRewards={() => setActiveTab("rewards")}
+            initialGrade={
+              userProfile.grade
+            }
+            onAddCredits={
+              handleAddCredits
+            }
+            userCredits={
+              credits
+            }
+            onNavigateToRewards={() =>
+              setActiveTab(
+                "rewards"
+              )
+            }
           />
         )}
 
-        {activeTab === "rewards" && (
+        {activeTab ===
+          "rewards" && (
           <RewardShopView
-            credits={credits}
-            transactions={creditTransactions}
-            redeemedGifts={redeemedGifts}
-            onRedeemReward={handleRedeemReward}
-            onNavigateToScan={() => setActiveTab("create")}
-            onNavigateToArena={() => setActiveTab("arena")}
+            credits={
+              credits
+            }
+            transactions={
+              creditTransactions
+            }
+            redeemedGifts={
+              redeemedGifts
+            }
+            onRedeemReward={
+              handleRedeemReward
+            }
+            onNavigateToScan={() =>
+              setActiveTab(
+                "create"
+              )
+            }
+            onNavigateToArena={() =>
+              setActiveTab(
+                "arena"
+              )
+            }
           />
         )}
 
-        {activeTab === "game" && <MemoryGame />}
+        {activeTab ===
+          "game" && (
+          <MemoryGame />
+        )}
       </main>
+
+      {/* =====================================================
+          GROQ FLOATING LEARNING CHAT
+          ===================================================== */}
+      <FloatingAIChat
+        subject={
+          selectedSubject
+        }
+        grade={
+          selectedGrade
+        }
+        accentColor={
+          accentColor
+        }
+        isDark={
+          isDark
+        }
+      />
 
       {insufficientCreditsModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2146,17 +3327,24 @@ export default function SmartNotesApp() {
             </div>
 
             <div className="text-center">
-              <h3 className="font-black text-lg">Không đủ credits</h3>
+              <h3 className="font-black text-lg">
+                Không đủ credits
+              </h3>
+
               <p className="text-xs text-zinc-500 mt-2">
-                Bạn cần ít nhất 2 credits để phân tích. Hiện có {credits}{" "}
-                credits.
+                Bạn cần ít nhất 2 credits để phân tích. Hiện có{" "}
+                {credits} credits.
               </p>
             </div>
 
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setInsufficientCreditsModal(false)}
+                onClick={() =>
+                  setInsufficientCreditsModal(
+                    false
+                  )
+                }
                 className="flex-1 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-bold"
               >
                 Đóng
@@ -2165,8 +3353,13 @@ export default function SmartNotesApp() {
               <button
                 type="button"
                 onClick={() => {
-                  setInsufficientCreditsModal(false);
-                  setActiveTab("arena");
+                  setInsufficientCreditsModal(
+                    false
+                  );
+
+                  setActiveTab(
+                    "arena"
+                  );
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold"
               >
@@ -2179,32 +3372,67 @@ export default function SmartNotesApp() {
 
       {showThemeModal && (
         <ThemeStudioModal
-          theme={themeMode}
-          accentColor={accentColor}
-          onThemeChange={handleThemeChange}
-          onAccentColorChange={handleAccentColorChange}
-          onClose={() => setShowThemeModal(false)}
+          theme={
+            themeMode
+          }
+          accentColor={
+            accentColor
+          }
+          onThemeChange={
+            handleThemeChange
+          }
+          onAccentColorChange={
+            handleAccentColorChange
+          }
+          onClose={() =>
+            setShowThemeModal(
+              false
+            )
+          }
         />
       )}
 
       {showProfileModal && (
         <ProfileModal
-          profile={userProfile}
-          onSave={(updated) => {
-            setUserProfile(updated);
+          profile={
+            userProfile
+          }
+          onSave={(
+            updated
+          ) => {
+            setUserProfile(
+              updated
+            );
 
-            if (auth.currentUser && updated.fullName) {
-              updateProfile(auth.currentUser, {
-                displayName: updated.fullName,
-              }).catch((error) => {
-                console.error("Firebase displayName update error:", error);
-              });
+            if (
+              auth.currentUser &&
+              updated.fullName
+            ) {
+              updateProfile(
+                auth.currentUser,
+                {
+                  displayName:
+                    updated.fullName,
+                }
+              ).catch(
+                (
+                  error
+                ) => {
+                  console.error(
+                    "Firebase displayName update error:",
+                    error
+                  );
+                }
+              );
             }
           }}
-          onClose={() => setShowProfileModal(false)}
+          onClose={() =>
+            setShowProfileModal(
+              false
+            )
+          }
         />
       )}
     </div>
   );
 }
-// force vercel deploy latest main
